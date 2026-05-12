@@ -1,26 +1,72 @@
-import { useState } from 'react'
-import reactLogo from './assets/react.svg'
-import viteLogo from './assets/vite.svg'
-import heroImg from './assets/hero.png'
-import './App.css'
+import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
+import { useEffect, useState } from "react";
+import { auth, db } from "./firebase/config";
+import { onAuthStateChanged } from "firebase/auth";
+import { doc, getDoc } from "firebase/firestore";
 
-function App() {
-  const [count, setCount] = useState(0)
+import Login from "./pages/Login";
+import DashboardMedico from "./pages/DashboardMedico";
+import DashboardPaciente from "./pages/DashboardPaciente";
+import DashboardAsistente from "./pages/DashboardAsistente";
+import DashboardAdmin from "./pages/DashboardAdmin";
 
-  return (
-    <>
-      <section id="center">
-        <div className="hero">
-          <img src={heroImg} className="base" width="170" height="179" alt="" />
-          <img src={reactLogo} className="framework" alt="React logo" />
-          <img src={viteLogo} className="vite" alt="Vite logo" />
-        </div>
-        <div>
-          <h1>Pagina para el proyecto web Citas Médicas</h1>
-        </div>
-      </section>
-    </>
-  )
+function RutaProtegida({ user, rolRequerido, children }) {
+  if (!user) return <Navigate to="/" />;
+  if (user.rol !== rolRequerido) return <Navigate to="/" />;
+  return children;
 }
 
-export default App
+export default function App() {
+  const [user, setUser] = useState(null);
+  const [cargando, setCargando] = useState(true);
+
+  useEffect(() => {
+    const unsub = onAuthStateChanged(auth, async (firebaseUser) => {
+      if (firebaseUser) {
+        const ref = doc(db, "usuarios", firebaseUser.uid);
+        const snap = await getDoc(ref);
+        if (snap.exists()) {
+          setUser({ uid: firebaseUser.uid, ...snap.data() });
+        }
+      } else {
+        setUser(null);
+      }
+      setCargando(false);
+    });
+    return () => unsub();
+  }, []);
+
+  if (cargando) return (
+    <div className="flex items-center justify-center h-screen text-xl">
+      Cargando...
+    </div>
+  );
+
+  return (
+    <BrowserRouter>
+      <Routes>
+        <Route path="/" element={<Login />} />
+        <Route path="/medico" element={
+          <RutaProtegida user={user} rolRequerido="medico">
+            <DashboardMedico user={user} />
+          </RutaProtegida>
+        } />
+        <Route path="/paciente" element={
+          <RutaProtegida user={user} rolRequerido="paciente">
+            <DashboardPaciente user={user} />
+          </RutaProtegida>
+        } />
+        <Route path="/asistente" element={
+          <RutaProtegida user={user} rolRequerido="asistente">
+            <DashboardAsistente user={user} />
+          </RutaProtegida>
+        } />
+        <Route path="/admin" element={
+          <RutaProtegida user={user} rolRequerido="admin">
+            <DashboardAdmin user={user} />
+          </RutaProtegida>
+        } />
+      </Routes>
+    </BrowserRouter>
+  );
+}
