@@ -1,22 +1,20 @@
 import { useState } from "react";
 import { auth, googleProvider, db } from "../firebase/config";
-import { signInWithPopup, signInWithEmailAndPassword } from "firebase/auth";
+import { signInWithPopup, signInWithEmailAndPassword, createUserWithEmailAndPassword } from "firebase/auth";
 import { doc, getDoc, setDoc } from "firebase/firestore";
 import { useNavigate } from "react-router-dom";
 
 export default function Login() {
+  const [tab, setTab] = useState("login");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [nombre, setNombre] = useState("");
   const [error, setError] = useState("");
+  const [exito, setExito] = useState("");
   const navigate = useNavigate();
 
   const redirigirPorRol = (rol) => {
-    const rutas = {
-      medico: "/medico",
-      paciente: "/paciente",
-      asistente: "/asistente",
-      admin: "/admin",
-    };
+    const rutas = { medico: "/medico", paciente: "/paciente", asistente: "/asistente", admin: "/admin" };
     navigate(rutas[rol] || "/");
   };
 
@@ -26,15 +24,8 @@ export default function Login() {
       const user = result.user;
       const ref = doc(db, "usuarios", user.uid);
       const snap = await getDoc(ref);
-
       if (!snap.exists()) {
-        // Primera vez: se registra como paciente por defecto
-        await setDoc(ref, {
-          nombre: user.displayName,
-          email: user.email,
-          foto: user.photoURL,
-          rol: "paciente",
-        });
+        await setDoc(ref, { nombre: user.displayName, email: user.email, foto: user.photoURL, rol: "paciente" });
         navigate("/paciente");
       } else {
         redirigirPorRol(snap.data().rol);
@@ -46,6 +37,7 @@ export default function Login() {
 
   const loginConEmail = async (e) => {
     e.preventDefault();
+    setError("");
     try {
       const result = await signInWithEmailAndPassword(auth, email, password);
       const ref = doc(db, "usuarios", result.user.uid);
@@ -56,56 +48,162 @@ export default function Login() {
     }
   };
 
+  const registrarse = async (e) => {
+    e.preventDefault();
+    setError("");
+    setExito("");
+    if (!nombre.trim()) return setError("Escribe tu nombre completo");
+    if (password.length < 6) return setError("La contraseña debe tener al menos 6 caracteres");
+    try {
+      const result = await createUserWithEmailAndPassword(auth, email, password);
+      await setDoc(doc(db, "usuarios", result.user.uid), {
+        nombre,
+        email,
+        foto: "",
+        rol: "paciente",
+      });
+      setExito("¡Cuenta creada! Ahora inicia sesión.");
+      setTab("login");
+      setEmail("");
+      setPassword("");
+      setNombre("");
+    } catch (err) {
+      if (err.code === "auth/email-already-in-use") {
+        setError("Este correo ya está registrado");
+      } else {
+        setError("Error al crear la cuenta");
+      }
+    }
+  };
+
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 flex items-center justify-center p-4">
-      <div className="bg-white rounded-2xl shadow-lg p-8 w-full max-w-md">
-        <h1 className="text-3xl font-bold text-center text-indigo-700 mb-2">
-          Citas Médicas
-        </h1>
-        <p className="text-center text-gray-500 mb-8">Inicia sesión para continuar</p>
+    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-700 to-blue-200 p-5">
+      <div className="flex w-full max-w-5xl min-h-[580px] rounded-2xl overflow-hidden shadow-2xl">
 
-        {error && (
-          <div className="bg-red-50 text-red-600 rounded-lg p-3 mb-4 text-sm">
-            {error}
+        {/* Panel izquierdo */}
+        <div className="flex-1 bg-gradient-to-b from-blue-300 to-blue-700 flex flex-col justify-between p-9">
+          <span className="text-white font-bold text-4xl">Citas Médicas</span>
+          <div className="flex flex-col items-center gap-4">
+            <p className="text-white font-bold text-2xl text-center leading-snug">
+              Aquí irá el logo y una frase
+            </p>
           </div>
-        )}
-
-        <button
-          onClick={loginConGoogle}
-          className="w-full flex items-center justify-center gap-3 border border-gray-300 rounded-xl py-3 mb-6 hover:bg-gray-50 transition font-medium"
-        >
-          <img src="https://www.svgrepo.com/show/475656/google-color.svg" className="w-5 h-5" alt="Google" />
-          Continuar con Google
-        </button>
-
-        <div className="flex items-center gap-3 mb-6">
-          <hr className="flex-1 border-gray-200" />
-          <span className="text-gray-400 text-sm">o</span>
-          <hr className="flex-1 border-gray-200" />
+          <span className="text-white/40 text-sm text-center">© 2026 Citas Médicas</span>
         </div>
 
-        <form onSubmit={loginConEmail} className="flex flex-col gap-4">
-          <input
-            type="email"
-            placeholder="Correo electrónico"
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-            className="border border-gray-300 rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-indigo-400"
-          />
-          <input
-            type="password"
-            placeholder="Contraseña"
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            className="border border-gray-300 rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-indigo-400"
-          />
+        {/* Panel derecho */}
+        <div className="flex-[1.2] bg-gray-50 flex flex-col justify-center px-15 py-14">
+
+          {/* Tabs */}
+          <div className="flex gap-6 mb-8">
+            <span
+              onClick={() => { setTab("login"); setError(""); setExito(""); }}
+              className={`text-2xl font-bold pb-1 cursor-pointer transition-colors ${tab === "login" ? "text-blue-600 border-b-2 border-blue-600" : "text-gray-300"}`}
+            >
+              Iniciar sesión
+            </span>
+            <span
+              onClick={() => { setTab("registro"); setError(""); setExito(""); }}
+              className={`text-2xl font-bold pb-1 cursor-pointer transition-colors ${tab === "registro" ? "text-blue-600 border-b-2 border-blue-600" : "text-gray-300"}`}
+            >
+              Registro
+            </span>
+          </div>
+
+          {error && (
+            <div className="bg-red-50 text-red-500 rounded-xl px-4 py-3 text-sm mb-4 text-center">
+              {error}
+            </div>
+          )}
+          {exito && (
+            <div className="bg-green-50 text-green-600 rounded-xl px-4 py-3 text-sm mb-4 text-center">
+              {exito}
+            </div>
+          )}
+
+          {/* Formulario login */}
+          {tab === "login" && (
+            <form onSubmit={loginConEmail} className="flex flex-col gap-5">
+              <div className="flex flex-col gap-1">
+                <label className="text-sm font-bold text-blue-500 tracking-wide">CORREO ELECTRÓNICO</label>
+                <input
+                  type="email"
+                  placeholder="tucorreo@email.com"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  className="border-b border-gray-200 bg-transparent py-3 text-sm text-gray-700 outline-none focus:border-blue-500 transition-colors placeholder-gray-300"
+                />
+              </div>
+              <div className="flex flex-col gap-1">
+                <label className="text-sm font-bold text-blue-500 tracking-wide">CONTRASEÑA</label>
+                <input
+                  type="password"
+                  placeholder="••••••••"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  className="border-b border-gray-200 bg-transparent py-3 text-sm text-gray-700 outline-none focus:border-blue-500 transition-colors placeholder-gray-300"
+                />
+              </div>
+              <button type="submit" className="w-full bg-blue-500 hover:bg-blue-600 text-white font-bold py-3 rounded-xl tracking-widest text-sm transition-all shadow-lg shadow-blue-200 mt-1">
+                INICIAR SESIÓN
+              </button>
+            </form>
+          )}
+
+          {/* Formulario registro */}
+          {tab === "registro" && (
+            <form onSubmit={registrarse} className="flex flex-col gap-5">
+              <div className="flex flex-col gap-1">
+                <label className="text-sm font-bold text-blue-500 tracking-wide">NOMBRE COMPLETO</label>
+                <input
+                  type="text"
+                  placeholder="Tu nombre"
+                  value={nombre}
+                  onChange={(e) => setNombre(e.target.value)}
+                  className="border-b border-gray-200 bg-transparent py-3 text-sm text-gray-700 outline-none focus:border-blue-500 transition-colors placeholder-gray-300"
+                />
+              </div>
+              <div className="flex flex-col gap-1">
+                <label className="text-sm font-bold text-blue-500 tracking-wide">CORREO ELECTRÓNICO</label>
+                <input
+                  type="email"
+                  placeholder="tucorreo@email.com"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  className="border-b border-gray-200 bg-transparent py-3 text-sm text-gray-700 outline-none focus:border-blue-500 transition-colors placeholder-gray-300"
+                />
+              </div>
+              <div className="flex flex-col gap-1">
+                <label className="text-sm font-bold text-blue-500 tracking-wide">CONTRASEÑA</label>
+                <input
+                  type="password"
+                  placeholder="Mínimo 6 caracteres"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  className="border-b border-gray-200 bg-transparent py-3 text-sm text-gray-700 outline-none focus:border-blue-500 transition-colors placeholder-gray-300"
+                />
+              </div>
+              <button type="submit" className="w-full bg-blue-500 hover:bg-blue-600 text-white font-bold py-3 rounded-xl tracking-widest text-sm transition-all shadow-lg shadow-blue-200 mt-1">
+                CREAR CUENTA
+              </button>
+            </form>
+          )}
+
+          <div className="flex items-center gap-3 my-6">
+            <hr className="flex-1 border-gray-200"/>
+            <span className="text-sm text-gray-400 font-semibold">O continúa con</span>
+            <hr className="flex-1 border-gray-200"/>
+          </div>
+
           <button
-            type="submit"
-            className="bg-indigo-600 text-white rounded-xl py-3 font-semibold hover:bg-indigo-700 transition"
+            onClick={loginConGoogle}
+            className="w-full flex items-center justify-center gap-3 border border-gray-200 rounded-xl py-3 bg-white hover:border-blue-500 hover:shadow-md transition-all text-sm font-semibold text-gray-600"
           >
-            Iniciar sesión
+            <img src="https://www.svgrepo.com/show/475656/google-color.svg" width="20" height="20" alt="Google"/>
+            Continuar con Google
           </button>
-        </form>
+
+        </div>
       </div>
     </div>
   );
