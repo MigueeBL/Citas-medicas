@@ -96,7 +96,7 @@ export default function Login() {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-700 to-blue-200 p-4">
+    <div className="min-h-dvh flex items-center justify-center bg-gradient-to-br from-blue-700 to-blue-200 p-4">
       <div className="flex w-full max-w-5xl min-h-[580px] rounded-2xl overflow-hidden shadow-2xl">
         {/* Panel izquierdo - oculto en móvil */}
         <div className="hidden md:flex flex-1 bg-gradient-to-b from-blue-300 to-blue-700 flex-col justify-between p-9">
