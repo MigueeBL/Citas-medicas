@@ -638,10 +638,14 @@ export default function DashboardPaciente({ user }) {
   const cargarMedicos = async () => {
     setCargandoMedicos(true);
     try {
-      const snapshot = await getDocs(collection(db, "medicos"));
-      const data = snapshot.docs.map(docSnap => ({
-        id: docSnap.id,
-        ...docSnap.data(),
+    const q = query(
+      collection(db, "usuarios"),
+      where("rol", "==", "medico")
+    );
+    const snapshot = await getDocs(q);
+    const data = snapshot.docs.map(docSnap => ({
+      id: docSnap.id,
+      ...docSnap.data(),
       }));
       setMedicos(data);
     } catch (e) {
