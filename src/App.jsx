@@ -9,12 +9,12 @@ import DashboardMedico from "./pages/DashboardMedico";
 import DashboardPaciente from "./pages/DashboardPaciente";
 import DashboardAsistente from "./pages/DashboardAsistente";
 //import DashboardAdmin from "./pages/DashboardAdmin";
-import AdminLayout from "./pages/admin/AdminLayout";
+import AdminLayout from "./pages/admin/Adminlayout";
 import DashboardAdmin from "./pages/admin/DashboardAdmin";
 import Medicos from "./pages/admin/Medicos";
 import Pacientes from "./pages/admin/Pacientes";
 import Ingresos from "./pages/admin/Ingresos";
-import CitasMensuales from "./pages/admin/CitasMensuales";
+import CitasMensuales from "./pages/admin/Citasmensuales";
 
 function RutaProtegida({ user, rolRequerido, children }) {
   if (!user) return <Navigate to="/" />;

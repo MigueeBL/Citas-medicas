@@ -3,18 +3,19 @@ import {
   BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer,
   PieChart, Pie, Cell, Legend
 } from "recharts";
-import {
-  collection, getDocs, query, where,
-  Timestamp, orderBy
-} from "firebase/firestore";
+import { getPacientes, getPacientesNuevos } from "../../models/usuarios";
+import { getMedicos } from "../../models/medicos";
+import { getCitasDelMes } from "../../models/citas";
+import { getPagosDelMes, calcularTotalIngresos } from "../../models/pagos";
+
 import { db } from "../../firebase/config.js"; // ajusta la ruta a tu config de Firebase
 
 // ─── Colores del tema ───────────────────────────────────────────────────────
-const BLUE    = "#185FA5";
+const BLUE = "#185FA5";
 const BLUE_LT = "#B5D4F4";
-const TEAL    = "#1D9E75";
-const AMBER   = "#EF9F27";
-const GRAY    = "#B4B2A9";
+const TEAL = "#1D9E75";
+const AMBER = "#EF9F27";
+const GRAY = "#B4B2A9";
 
 const PIE_COLORS = [BLUE, BLUE_LT, TEAL, AMBER, GRAY];
 
@@ -26,7 +27,7 @@ function getFirstDayOfMonth() {
 
 function getWeekLabel(fecha) {
   const day = fecha.toDate ? fecha.toDate().getDate() : new Date(fecha).getDate();
-  if (day <= 7)  return "S1";
+  if (day <= 7) return "S1";
   if (day <= 14) return "S2";
   if (day <= 21) return "S3";
   return "S4";
@@ -66,8 +67,8 @@ function SectionCard({ title, action, onAction, children }) {
 
 // ─── Componente principal ────────────────────────────────────────────────────
 export default function AdminDashboard() {
-  const [loading, setLoading]         = useState(true);
-  const [metrics, setMetrics]         = useState({
+  const [loading, setLoading] = useState(true);
+  const [metrics, setMetrics] = useState({
     totalCitas: 0,
     ingresosMes: 0,
     medicosActivos: 0,
@@ -89,18 +90,18 @@ export default function AdminDashboard() {
 
   async function fetchDashboardData() {
     try {
-      const inicioMes = Timestamp.fromDate(getFirstDayOfMonth());
+      const hoy = new Date();
+      const mes = hoy.getMonth();
+      const anio = hoy.getFullYear();
 
-      // ── Citas del mes ──────────────────────────────────────────────────
-      const citasSnap = await getDocs(
-        query(
-          collection(db, "citas"),
-          where("fecha", ">=", inicioMes)
-        )
-      );
-      const citas = citasSnap.docs.map((d) => ({ id: d.id, ...d.data() }));
+      const [citas, pagos, medicos, pacientes, nuevosPacientes] = await Promise.all([
+        getCitasDelMes(mes, anio),
+        getPagosDelMes(mes, anio),
+        getMedicos(),
+        getPacientes(),
+        getPacientesNuevos(7),
+      ]);
 
-      // Agrupar por semana
       const semanasMap = { S1: 0, S2: 0, S3: 0, S4: 0 };
       citas.forEach((c) => {
         const s = getWeekLabel(c.fecha);
@@ -110,25 +111,6 @@ export default function AdminDashboard() {
         Object.entries(semanasMap).map(([semana, citasN]) => ({ semana, citas: citasN }))
       );
 
-      // ── Pagos del mes ──────────────────────────────────────────────────
-      const pagosSnap = await getDocs(
-        query(
-          collection(db, "pagos"),
-          where("fecha", ">=", inicioMes)
-        )
-      );
-      const ingresosMes = pagosSnap.docs.reduce(
-        (acc, d) => acc + (d.data().monto || 0),
-        0
-      );
-
-      // ── Médicos ────────────────────────────────────────────────────────
-      const medicosSnap = await getDocs(collection(db, "medicos"));
-      const medicos = medicosSnap.docs.map((d) => d.data());
-      const medicosActivos    = medicos.filter((m) => m.activo && m.validado).length;
-      const medicosPendientes = medicos.filter((m) => !m.validado).length;
-
-      // Especialidades para la gráfica de dona
       const espMap = {};
       medicos.forEach((m) => {
         const esp = m.especialidad || "Otras";
@@ -140,26 +122,13 @@ export default function AdminDashboard() {
           .sort((a, b) => b.value - a.value)
       );
 
-      // ── Pacientes ──────────────────────────────────────────────────────
-      const pacientesSnap = await getDocs(
-        query(collection(db, "usuarios"), where("rol", "==", "paciente"))
-      );
-      const pacientes = pacientesSnap.docs.map((d) => d.data());
-
-      const unaSemanaAtras = new Date();
-      unaSemanaAtras.setDate(unaSemanaAtras.getDate() - 7);
-      const tsUnaSemana = Timestamp.fromDate(unaSemanaAtras);
-      const nuevosPacientes = pacientes.filter(
-        (p) => p.fechaRegistro && p.fechaRegistro >= tsUnaSemana
-      ).length;
-
       setMetrics({
         totalCitas: citas.length,
-        ingresosMes,
-        medicosActivos,
-        medicosPendientes,
+        ingresosMes: calcularTotalIngresos(pagos),
+        medicosActivos: medicos.filter((m) => m.activo && m.validado).length,
+        medicosPendientes: medicos.filter((m) => !m.validado).length,
         pacientes: pacientes.length,
-        nuevosPacientes,
+        nuevosPacientes: nuevosPacientes.length,
       });
     } catch (error) {
       console.error("Error cargando dashboard:", error);
@@ -167,6 +136,7 @@ export default function AdminDashboard() {
       setLoading(false);
     }
   }
+
 
   // ── Tooltip personalizado para BarChart ───────────────────────────────────
   const CustomTooltip = ({ active, payload, label }) => {
