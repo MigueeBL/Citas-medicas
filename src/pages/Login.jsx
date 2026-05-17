@@ -7,6 +7,8 @@ import {
 } from "firebase/auth";
 import { doc, getDoc, setDoc } from "firebase/firestore";
 import { useNavigate } from "react-router-dom";
+import logo from "../assets/logo.png";
+import logoHospital from "../assets/logoHospital.png";
 
 export default function Login() {
   const [tab, setTab] = useState("login");
@@ -100,10 +102,18 @@ export default function Login() {
       <div className="flex w-full max-w-5xl min-h-[580px] rounded-2xl overflow-hidden shadow-2xl">
         {/* Panel izquierdo - oculto en móvil */}
         <div className="hidden md:flex flex-1 bg-gradient-to-b from-blue-300 to-blue-700 flex-col justify-between p-9">
-          <span className="text-white font-bold text-4xl">Citas Médicas</span>
-          <div className="flex flex-col items-center gap-4">
-            <p className="text-white font-bold text-2xl text-center leading-snug">
-              Aquí irá el logo y una frase
+          <div className="flex items-center gap-3">
+            <img src={logo} alt="Logo" className="w-20 h-24 object-contain" />
+            <span className="text-white font-bold text-4xl">Citas Médicas</span>
+          </div>
+          <div className="flex flex-col items-center justify-center flex-1 gap-6">
+            <img
+              src={logoHospital}
+              alt="Hospital"
+              className="w-[380px] object-contain drop-shadow-2xl"
+            />
+            <p className="text-white text-2xl font-semibold text-center leading-relaxed max-w-md">
+              Gestiona tus citas médicas de forma rápida, segura y moderna.
             </p>
           </div>
           <span className="text-white/40 text-sm text-center">
@@ -115,10 +125,15 @@ export default function Login() {
         <div className="flex-1 md:flex-[1.2] bg-white flex flex-col justify-center px-8 md:px-14 py-10">
           {/* Logo solo visible en móvil */}
           <div className="md:hidden mb-8 text-center">
-            <span className="text-blue-600 font-bold text-3xl">
-              Citas Médicas
-            </span>
-            <p className="text-gray-400 text-sm mt-1">Aquí irá el logo y una frase</p>
+            <div className="flex items-center justify-center gap-3">
+              <img src={logo} alt="Logo" className="w-12 h-12 object-contain" />
+              <span className="text-blue-600 font-bold text-3xl">
+                Citas Médicas
+              </span>
+            </div>
+            <p className="text-blue-600 text-sm mt-3 max-w-xs mx-auto leading-relaxed">
+              Gestiona tus citas médicas de forma rápida, segura y moderna.
+            </p>
           </div>
 
           {/* Tabs */}
