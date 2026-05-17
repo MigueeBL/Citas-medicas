@@ -161,11 +161,11 @@ function Sidebar({ seccion, setSeccion, user, onLogout }) {
 
 function BottomNav({ seccion, setSeccion, onLogout }) {
   const items = [
-    { id: "overview",  label: "Inicio",    icon: "⊞" },
-    { id: "citas",     label: "Citas",     icon: "📅" },
-    { id: "proximas",  label: "Próximas",  icon: "🕐" },
-    { id: "historial", label: "Historial", icon: "📋" },
-  ];
+  { id: "overview",  label: "Overview",  icon: <IconoInicio   style={{width:20, height:20, color: seccion==="overview"  ? "white" : C.soft}} /> },
+  { id: "citas",     label: "Mis citas", icon: <IconoCitas    style={{width:20, height:20, color: seccion==="citas"     ? "white" : C.soft}} /> },
+  { id: "proximas",  label: "Próximas",  icon: <IconoProximas style={{width:20, height:20, color: seccion==="proximas"  ? "white" : C.soft}} /> },
+  { id: "historial", label: "Historial", icon: <IconoHistorial style={{width:20, height:20, color: seccion==="historial" ? "white" : C.soft}} /> },
+];
   return (
     <nav className="md:hidden fixed bottom-0 left-0 right-0 z-50 flex" style={{background: "white", borderTop: `1px solid ${C.soft}`}}>
       {items.map(item => (
