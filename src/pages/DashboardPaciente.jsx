@@ -16,20 +16,6 @@ const C = {
 
 const MESES = ["Enero","Febrero","Marzo","Abril","Mayo","Junio","Julio","Agosto","Septiembre","Octubre","Noviembre","Diciembre"];
 
-// ── Datos de ejemplo ───────────────────────────────────────────────────────
-const MEDICOS_EJEMPLO = [
-  { id: "m1", nombre: "Dr. Juan Pérez",    especialidad: "Cardiología",    precio: 500, horarios: ["09:00","10:00","11:00","15:00","16:00"] },
-  { id: "m2", nombre: "Dra. Laura Gómez",  especialidad: "Pediatría",      precio: 400, horarios: ["08:00","09:00","10:00","14:00","15:00"] },
-  { id: "m3", nombre: "Dr. Carlos Ruiz",   especialidad: "Medicina General",precio: 300, horarios: ["10:00","11:00","12:00","16:00","17:00"] },
-  { id: "m4", nombre: "Dra. Ana Martínez", especialidad: "Dermatología",   precio: 450, horarios: ["09:00","10:00","11:00","12:00"] },
-];
-
-const CITAS_EJEMPLO = [
-  { id: "c1", medicoNombre: "Dr. Juan Pérez", especialidad: "Cardiología", fecha: "2026-05-18", hora: "10:00 AM", estado: "confirmada", precio: 500 },
-  { id: "c2", medicoNombre: "Dra. Laura Gómez", especialidad: "Pediatría", fecha: "2026-05-22", hora: "09:00 AM", estado: "pendiente", precio: 400 },
-  { id: "c3", medicoNombre: "Dr. Carlos Ruiz", especialidad: "Medicina General", fecha: "2026-04-10", hora: "11:00 AM", estado: "confirmada", precio: 300 },
-];
-
 function getToday() {
   const d = new Date();
   return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}-${String(d.getDate()).padStart(2,"0")}`;
@@ -50,9 +36,9 @@ function EstadoBadge({ estado }) {
 // ── Sidebar desktop ────────────────────────────────────────────────────────
 function Sidebar({ seccion, setSeccion, user, onLogout }) {
   const items = [
-    { id: "inicio",   label: "Inicio",    icon: "⊞" },
-    { id: "agendar",     label: "Agendar cita", icon: "➕" },
-    { id: "miscitas",    label: "Mis citas",    icon: "📅" },
+    { id: "inicio",   label: "Inicio",       icon: "⊞" },
+    { id: "agendar",  label: "Agendar cita",  icon: "➕" },
+    { id: "miscitas", label: "Mis citas",     icon: "📅" },
   ];
   return (
     <aside className="hidden md:flex w-56 min-h-screen flex-col flex-shrink-0" style={{background: C.dark}}>
@@ -92,9 +78,9 @@ function Sidebar({ seccion, setSeccion, user, onLogout }) {
 // ── Bottom nav móvil ───────────────────────────────────────────────────────
 function BottomNav({ seccion, setSeccion, onLogout }) {
   const items = [
-    { id: "inicio", label: "Inicio",  icon: "⊞" },
-    { id: "agendar",   label: "Agendar", icon: "➕" },
-    { id: "miscitas",  label: "Mis citas",icon: "📅" },
+    { id: "inicio",   label: "Inicio",   icon: "⊞" },
+    { id: "agendar",  label: "Agendar",  icon: "➕" },
+    { id: "miscitas", label: "Mis citas", icon: "📅" },
   ];
   return (
     <nav className="md:hidden fixed bottom-0 left-0 right-0 z-50 flex" style={{background: "white", borderTop: `1px solid ${C.soft}`}}>
@@ -146,7 +132,6 @@ function DashboardView({ user, citas, setSeccion }) {
 
   return (
     <div className="flex-1 p-4 md:p-6 overflow-y-auto pb-20 md:pb-6" style={{background: C.bg}}>
-      {/* Header desktop */}
       <div className="hidden md:flex items-center justify-between mb-6">
         <div>
           <h1 className="text-2xl font-bold" style={{color: C.dark}}>¡Hola, {user?.nombre?.split(" ")[0]||"Paciente"}! 👋</h1>
@@ -161,15 +146,12 @@ function DashboardView({ user, citas, setSeccion }) {
         </div>
       </div>
 
-      {/* Saludo móvil */}
       <div className="md:hidden mb-4">
         <h1 className="text-lg font-bold" style={{color: C.dark}}>¡Hola, {user?.nombre?.split(" ")[0]||"Paciente"}! 👋</h1>
         <p className="text-xs" style={{color: C.mid}}>{fechaHoy.toLocaleDateString("es-MX",{weekday:"long",day:"numeric",month:"long"})}</p>
       </div>
 
-      {/* Widgets top */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6">
-        {/* Próxima cita */}
         <div className="rounded-2xl p-4 shadow-sm col-span-1 sm:col-span-2" style={{background: "white", border: `1px solid ${C.soft}`}}>
           <p className="text-xs font-medium mb-2" style={{color: C.mid}}>📋 Próxima cita</p>
           {proxima ? (
@@ -200,7 +182,6 @@ function DashboardView({ user, citas, setSeccion }) {
           )}
         </div>
 
-        {/* Total citas */}
         <div className="rounded-2xl p-4 shadow-sm" style={{background: "white", border: `1px solid ${C.soft}`}}>
           <p className="text-xs" style={{color: C.mid}}>Citas totales</p>
           <p className="text-3xl font-bold my-1" style={{color: C.dark}}>{citas.length}</p>
@@ -212,7 +193,6 @@ function DashboardView({ user, citas, setSeccion }) {
         </div>
       </div>
 
-      {/* Próximas citas */}
       {proximas.length > 0 && (
         <div className="rounded-2xl p-4 shadow-sm mb-4" style={{background: "white", border: `1px solid ${C.soft}`}}>
           <div className="flex items-center justify-between mb-3">
@@ -245,7 +225,6 @@ function DashboardView({ user, citas, setSeccion }) {
         </div>
       )}
 
-      {/* Historial reciente */}
       {pasadas.length > 0 && (
         <div className="rounded-2xl p-4 shadow-sm" style={{background: "white", border: `1px solid ${C.soft}`}}>
           <h3 className="text-sm font-semibold mb-3" style={{color: C.dark}}>Historial reciente</h3>
@@ -274,32 +253,47 @@ function DashboardView({ user, citas, setSeccion }) {
 }
 
 // ── Agendar cita ───────────────────────────────────────────────────────────
-function AgendarCita({ user, onCitaAgendada }) {
-  const [paso, setPaso] = useState(1); // 1: médico, 2: fecha/hora, 3: pago
+function AgendarCita({ user, onCitaAgendada, medicos, cargandoMedicos }) {
+  const [paso, setPaso] = useState(1);
   const [medicoSel, setMedicoSel] = useState(null);
   const [fecha, setFecha] = useState("");
   const [horaSel, setHoraSel] = useState("");
+  const [metodoPago, setMetodoPago] = useState("tarjeta");
   const [cargando, setCargando] = useState(false);
   const [exito, setExito] = useState(false);
   const [busqueda, setBusqueda] = useState("");
+  const [error, setError] = useState("");
 
-  const medicosFiltrados = MEDICOS_EJEMPLO.filter(m =>
+  const medicosFiltrados = medicos.filter(m =>
     m.nombre.toLowerCase().includes(busqueda.toLowerCase()) ||
     m.especialidad.toLowerCase().includes(busqueda.toLowerCase())
   );
 
   const hoy = new Date().toISOString().split("T")[0];
 
+  // ✅ Guardar cita en Firestore
   const confirmarCita = async () => {
     setCargando(true);
+    setError("");
     try {
-      // Aquí se guardaría en Firestore:
-      // await addDoc(collection(db, "citas"), { ... })
-      await new Promise(r => setTimeout(r, 1000)); // simulación
+      await addDoc(collection(db, "citas"), {
+        pacienteId:    user.uid,
+        pacienteNombre: user.nombre,
+        medicoId:      medicoSel.id,
+        medicoNombre:  medicoSel.nombre,
+        especialidad:  medicoSel.especialidad,
+        precio:        medicoSel.precio,
+        fecha:         fecha,
+        hora:          horaSel,
+        estado:        "pendiente",
+        metodoPago:    metodoPago,
+        creadaEn:      Timestamp.now(),
+      });
       setExito(true);
       onCitaAgendada();
     } catch (e) {
       console.error(e);
+      setError("Hubo un error al agendar la cita. Intenta de nuevo.");
     }
     setCargando(false);
   };
@@ -350,38 +344,42 @@ function AgendarCita({ user, onCitaAgendada }) {
             value={busqueda} onChange={e => setBusqueda(e.target.value)}
             className="w-full rounded-xl px-4 py-2.5 text-sm mb-4 outline-none"
             style={{background: "white", border: `1px solid ${C.soft}`, color: C.dark}} />
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-            {medicosFiltrados.map(medico => (
-              <button key={medico.id} onClick={() => { setMedicoSel(medico); setPaso(2); }}
-                className="text-left p-4 rounded-2xl shadow-sm transition-all"
-                style={{
-                  background: medicoSel?.id===medico.id ? C.pale : "white",
-                  border: `1px solid ${medicoSel?.id===medico.id ? C.mid : C.soft}`,
-                }}>
-                <div className="flex items-center gap-3 mb-2">
-                  <div className="w-10 h-10 rounded-full flex items-center justify-center text-white text-sm font-bold flex-shrink-0"
-                    style={{background: avatarColor(medico.nombre)}}>
-                    {medico.nombre.split(" ").slice(0,2).map(w=>w[0]).join("")}
+
+          {cargandoMedicos ? (
+            <div className="text-center py-10" style={{color: C.mid}}>Cargando médicos...</div>
+          ) : (
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              {medicosFiltrados.map(medico => (
+                <button key={medico.id} onClick={() => { setMedicoSel(medico); setPaso(2); }}
+                  className="text-left p-4 rounded-2xl shadow-sm transition-all"
+                  style={{
+                    background: medicoSel?.id===medico.id ? C.pale : "white",
+                    border: `1px solid ${medicoSel?.id===medico.id ? C.mid : C.soft}`,
+                  }}>
+                  <div className="flex items-center gap-3 mb-2">
+                    <div className="w-10 h-10 rounded-full flex items-center justify-center text-white text-sm font-bold flex-shrink-0"
+                      style={{background: avatarColor(medico.nombre)}}>
+                      {medico.nombre.split(" ").slice(0,2).map(w=>w[0]).join("")}
+                    </div>
+                    <div>
+                      <p className="text-sm font-semibold" style={{color: C.dark}}>{medico.nombre}</p>
+                      <p className="text-xs" style={{color: C.mid}}>{medico.especialidad}</p>
+                    </div>
                   </div>
-                  <div>
-                    <p className="text-sm font-semibold" style={{color: C.dark}}>{medico.nombre}</p>
-                    <p className="text-xs" style={{color: C.mid}}>{medico.especialidad}</p>
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs" style={{color: C.light}}>{medico.horarios?.length || 0} horarios disponibles</span>
+                    <span className="text-sm font-bold" style={{color: C.dark}}>${medico.precio}</span>
                   </div>
-                </div>
-                <div className="flex items-center justify-between">
-                  <span className="text-xs" style={{color: C.light}}>{medico.horarios.length} horarios disponibles</span>
-                  <span className="text-sm font-bold" style={{color: C.dark}}>${medico.precio}</span>
-                </div>
-              </button>
-            ))}
-          </div>
+                </button>
+              ))}
+            </div>
+          )}
         </div>
       )}
 
       {/* Paso 2: Fecha y hora */}
       {paso === 2 && medicoSel && (
         <div className="max-w-lg">
-          {/* Info médico seleccionado */}
           <div className="flex items-center gap-3 p-4 rounded-2xl mb-4" style={{background: "white", border: `1px solid ${C.soft}`}}>
             <div className="w-10 h-10 rounded-full flex items-center justify-center text-white text-sm font-bold flex-shrink-0"
               style={{background: avatarColor(medicoSel.nombre)}}>
@@ -394,7 +392,6 @@ function AgendarCita({ user, onCitaAgendada }) {
             <button onClick={() => setPaso(1)} className="text-xs" style={{color: C.mid}}>Cambiar</button>
           </div>
 
-          {/* Fecha */}
           <div className="mb-4">
             <label className="text-xs font-semibold block mb-2" style={{color: C.dark}}>Selecciona la fecha</label>
             <input type="date" min={hoy} value={fecha} onChange={e => { setFecha(e.target.value); setHoraSel(""); }}
@@ -402,12 +399,11 @@ function AgendarCita({ user, onCitaAgendada }) {
               style={{background: "white", border: `1px solid ${C.soft}`, color: C.dark}} />
           </div>
 
-          {/* Horarios */}
           {fecha && (
             <div className="mb-4">
               <label className="text-xs font-semibold block mb-2" style={{color: C.dark}}>Horarios disponibles</label>
               <div className="grid grid-cols-3 sm:grid-cols-4 gap-2">
-                {medicoSel.horarios.map(hora => (
+                {(medicoSel.horarios || []).map(hora => (
                   <button key={hora} onClick={() => setHoraSel(hora)}
                     className="py-2 rounded-xl text-sm font-medium transition-all"
                     style={{
@@ -465,18 +461,26 @@ function AgendarCita({ user, onCitaAgendada }) {
             </div>
           </div>
 
-          {/* Métodos de pago */}
           <div className="rounded-2xl p-4 mb-4" style={{background: "white", border: `1px solid ${C.soft}`}}>
             <h3 className="text-xs font-semibold mb-3" style={{color: C.dark}}>Método de pago</h3>
             <div className="flex flex-col gap-2">
-              {["💳 Tarjeta de crédito/débito", "🏦 Transferencia bancaria", "💵 Pago en consultorio"].map((metodo, idx) => (
-                <label key={idx} className="flex items-center gap-3 p-3 rounded-xl cursor-pointer" style={{background: C.bg}}>
-                  <input type="radio" name="pago" defaultChecked={idx===0} className="accent-current" style={{accentColor: C.dark}} />
-                  <span className="text-xs" style={{color: C.dark}}>{metodo}</span>
+              {[
+                { value: "tarjeta",      label: "💳 Tarjeta de crédito/débito" },
+                { value: "transferencia",label: "🏦 Transferencia bancaria" },
+                { value: "consultorio",  label: "💵 Pago en consultorio" },
+              ].map(m => (
+                <label key={m.value} className="flex items-center gap-3 p-3 rounded-xl cursor-pointer" style={{background: C.bg}}>
+                  <input type="radio" name="pago" value={m.value}
+                    checked={metodoPago === m.value}
+                    onChange={() => setMetodoPago(m.value)}
+                    style={{accentColor: C.dark}} />
+                  <span className="text-xs" style={{color: C.dark}}>{m.label}</span>
                 </label>
               ))}
             </div>
           </div>
+
+          {error && <p className="text-xs text-red-500 mb-3">{error}</p>}
 
           <div className="flex gap-3">
             <button onClick={() => setPaso(2)} className="flex-1 py-2.5 rounded-xl text-sm font-medium" style={{background: C.pale, color: C.dark}}>← Volver</button>
@@ -493,13 +497,38 @@ function AgendarCita({ user, onCitaAgendada }) {
 }
 
 // ── Mis citas ──────────────────────────────────────────────────────────────
-function MisCitas({ citas }) {
+function MisCitas({ citas, onActualizar }) {
   const [filtro, setFiltro] = useState("todas");
+  const [cargando, setCargando] = useState(false);
   const hoy = getToday();
 
   const filtradas = filtro==="proximas" ? citas.filter(c => c.fecha >= hoy).sort((a,b) => a.fecha.localeCompare(b.fecha))
     : filtro==="pasadas" ? citas.filter(c => c.fecha < hoy).sort((a,b) => b.fecha.localeCompare(a.fecha))
     : [...citas].sort((a,b) => a.fecha.localeCompare(b.fecha));
+
+  // ✅ Confirmar asistencia en Firestore
+  const confirmarAsistencia = async (citaId) => {
+    setCargando(true);
+    try {
+      await updateDoc(doc(db, "citas", citaId), { estado: "confirmada" });
+      onActualizar();
+    } catch (e) {
+      console.error(e);
+    }
+    setCargando(false);
+  };
+
+  // ✅ Cancelar cita en Firestore
+  const cancelarCita = async (citaId) => {
+    setCargando(true);
+    try {
+      await updateDoc(doc(db, "citas", citaId), { estado: "cancelada" });
+      onActualizar();
+    } catch (e) {
+      console.error(e);
+    }
+    setCargando(false);
+  };
 
   return (
     <div className="flex-1 p-4 md:p-6 overflow-y-auto pb-20 md:pb-6" style={{background: C.bg}}>
@@ -550,10 +579,18 @@ function MisCitas({ citas }) {
                 </div>
                 {cita.fecha >= hoy && cita.estado === "pendiente" && (
                   <div className="mt-3 flex gap-2">
-                    <button className="flex-1 py-1.5 rounded-xl text-xs font-medium text-white" style={{background: C.mid}}>
+                    <button
+                      onClick={() => confirmarAsistencia(cita.id)}
+                      disabled={cargando}
+                      className="flex-1 py-1.5 rounded-xl text-xs font-medium text-white"
+                      style={{background: C.mid}}>
                       ✓ Confirmar asistencia
                     </button>
-                    <button className="flex-1 py-1.5 rounded-xl text-xs font-medium" style={{background: C.pale, color: C.dark}}>
+                    <button
+                      onClick={() => cancelarCita(cita.id)}
+                      disabled={cargando}
+                      className="flex-1 py-1.5 rounded-xl text-xs font-medium"
+                      style={{background: C.pale, color: C.dark}}>
                       ✕ Cancelar
                     </button>
                   </div>
@@ -570,19 +607,72 @@ function MisCitas({ citas }) {
 // ── Dashboard principal ────────────────────────────────────────────────────
 export default function DashboardPaciente({ user }) {
   const [seccion, setSeccion] = useState("inicio");
-  const [citas, setCitas] = useState(CITAS_EJEMPLO);
+  const [citas, setCitas] = useState([]);
+  const [medicos, setMedicos] = useState([]);
+  const [cargandoCitas, setCargandoCitas] = useState(true);
+  const [cargandoMedicos, setCargandoMedicos] = useState(true);
   const navigate = useNavigate();
 
+  // ✅ Cargar citas del paciente desde Firestore
+  const cargarCitas = async () => {
+    if (!user?.uid) return;
+    setCargandoCitas(true);
+    try {
+      const q = query(
+        collection(db, "citas"),
+        where("pacienteId", "==", user.uid)
+      );
+      const snapshot = await getDocs(q);
+      const data = snapshot.docs.map(docSnap => ({
+        id: docSnap.id,
+        ...docSnap.data(),
+      }));
+      setCitas(data);
+    } catch (e) {
+      console.error("Error cargando citas:", e);
+    }
+    setCargandoCitas(false);
+  };
+
+  // ✅ Cargar médicos desde Firestore
+  const cargarMedicos = async () => {
+    setCargandoMedicos(true);
+    try {
+      const snapshot = await getDocs(collection(db, "medicos"));
+      const data = snapshot.docs.map(docSnap => ({
+        id: docSnap.id,
+        ...docSnap.data(),
+      }));
+      setMedicos(data);
+    } catch (e) {
+      console.error("Error cargando médicos:", e);
+    }
+    setCargandoMedicos(false);
+  };
+
+  useEffect(() => {
+    cargarCitas();
+    cargarMedicos();
+  }, [user]);
+
   const handleLogout = async () => { await signOut(auth); navigate("/"); };
+
+  if (cargandoCitas) {
+    return (
+      <div className="flex min-h-screen items-center justify-center" style={{background: C.bg}}>
+        <p style={{color: C.mid}}>Cargando tu información...</p>
+      </div>
+    );
+  }
 
   return (
     <div className="flex min-h-screen" style={{background: C.bg}}>
       <Sidebar seccion={seccion} setSeccion={setSeccion} user={user} onLogout={handleLogout} />
       <div className="flex-1 flex flex-col min-w-0">
         <HeaderMovil user={user} seccion={seccion} />
-        {seccion==="inicio" && <DashboardView user={user} citas={citas} setSeccion={setSeccion} />}
-        {seccion==="agendar"   && <AgendarCita   user={user} onCitaAgendada={() => setSeccion("miscitas")} />}
-        {seccion==="miscitas"  && <MisCitas       citas={citas} />}
+        {seccion==="inicio"   && <DashboardView user={user} citas={citas} setSeccion={setSeccion} />}
+        {seccion==="agendar"  && <AgendarCita   user={user} medicos={medicos} cargandoMedicos={cargandoMedicos} onCitaAgendada={() => { cargarCitas(); setSeccion("miscitas"); }} />}
+        {seccion==="miscitas" && <MisCitas       citas={citas} onActualizar={cargarCitas} />}
       </div>
       <BottomNav seccion={seccion} setSeccion={setSeccion} onLogout={handleLogout} />
     </div>
