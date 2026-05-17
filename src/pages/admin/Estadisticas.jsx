@@ -26,7 +26,7 @@ function exportarCSV(datos) {
     csv += `Asistentes,${conteos.asistentes}\n`;
     csv += `\nINGRESOS DEL MES\n`;
     csv += `Total de citas,${ingresosCitas}\n`;
-    csv += `Ingresos estimados,$${ingresosMes.toLocaleString("es-MX")}\n`;
+    csv += `Ingresos estimados,$${ingresosMes}\n`;
     csv += `\nESPECIALIDADES (todos los médicos)\n`;
     csv += "Especialidad,Médicos\n";
     especialidadesTodos.forEach((e) => { csv += `${e.name},${e.value}\n`; });
@@ -34,7 +34,6 @@ function exportarCSV(datos) {
     csv += "Especialidad,Médicos\n";
     especialidadesAprobados.forEach((e) => { csv += `${e.name},${e.value}\n`; });
 
-    // BOM para que Excel muestre acentos correctamente
     const BOM = "\uFEFF";
     const blob = new Blob([BOM + csv], { type: "text/csv;charset=utf-8;" });
     const url = URL.createObjectURL(blob);

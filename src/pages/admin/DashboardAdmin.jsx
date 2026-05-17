@@ -52,7 +52,7 @@ export default function DashboardAdmin() {
   const [loading, setLoading] = useState(true);
   const [metrics, setMetrics] = useState({
     totalCitas: 0, medicosActivos: 0, medicosPendientes: 0,
-    pacientes: 0, nuevosPacientes: 0,
+    pacientes: 0, nuevosPacientes: 0, asistentes: 0,
   });
   const [citasPorSemana, setCitasPorSemana] = useState([
     { semana: "S1", citas: 0 }, { semana: "S2", citas: 0 },
@@ -111,13 +111,17 @@ export default function DashboardAdmin() {
       );
 
       // ── Pacientes ──────────────────────────────────────────────────
-      const pacientesSnap = await getDocs(
-        query(collection(db, "usuarios"), where("rol", "==", "paciente"))
-      );
-      const pacientes = pacientesSnap.docs.map((d) => d.data());
+
+
+      // Trae todos los usuarios de una sola consulta
+      const usuariosSnap = await getDocs(collection(db, "usuarios"));
+      const usuarios = usuariosSnap.docs.map((d) => d.data());
+
+      const pacientes = usuarios.filter((u) => u.rol === "paciente");
+      const asistentes = usuarios.filter((u) => u.rol === "asistente");
+
       const nuevosPacientes = pacientes.filter((p) => {
         if (!p.fechaRegistro) return false;
-        // fechaRegistro puede ser Timestamp o string ISO
         const fecha = p.fechaRegistro?.toDate
           ? p.fechaRegistro.toDate()
           : new Date(p.fechaRegistro);
@@ -129,6 +133,7 @@ export default function DashboardAdmin() {
         medicosActivos,
         medicosPendientes,
         pacientes: pacientes.length,
+        asistentes: asistentes.length,
         nuevosPacientes,
       });
     } catch (error) {
@@ -137,6 +142,7 @@ export default function DashboardAdmin() {
       setLoading(false);
     }
   }
+
 
   const CustomTooltip = ({ active, payload, label }) => {
     if (active && payload?.length) {
@@ -181,6 +187,8 @@ export default function DashboardAdmin() {
           subColor={metrics.medicosPendientes > 0 ? "#854F0B" : TEAL} iconBg="#FAEEDA" />
         <MetricCard icon="👥" label="Pacientes registrados" value={metrics.pacientes}
           sub={`+${metrics.nuevosPacientes} nuevos esta semana`} subColor={TEAL} iconBg="#E1F5EE" />
+        <MetricCard icon="🧑‍💼" label="Asistentes" value={metrics.asistentes}
+          sub="Registrados en la plataforma" subColor={GRAY} iconBg="#F0E8FB" />
       </div>
 
       {/* Gráficas */}
@@ -240,7 +248,7 @@ const styles = {
   pageTitle: { fontSize: 20, fontWeight: 600, color: "#1a1a2e", margin: 0 },
   pageSubtitle: { fontSize: 13, color: "#888", marginTop: 4 },
   refreshBtn: { padding: "8px 16px", borderRadius: 8, border: `1px solid ${BLUE}`, background: "white", color: BLUE, fontSize: 13, cursor: "pointer", fontWeight: 500 },
-  metricsGrid: { display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 14, marginBottom: 20 },
+  metricsGrid: { display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 14, marginBottom: 20 },
   metricCard: { background: "white", borderRadius: 12, border: "0.5px solid #e5e7eb", padding: "16px 18px" },
   metricIcon: { width: 38, height: 38, borderRadius: 10, display: "flex", alignItems: "center", justifyContent: "center", marginBottom: 12, fontSize: 20 },
   metricLabel: { fontSize: 12, color: "#888", margin: "0 0 4px" },
