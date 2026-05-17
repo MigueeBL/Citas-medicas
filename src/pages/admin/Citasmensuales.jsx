@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { getCitasDelMes } from "../../models/Citas";
+import { collection, getDocs } from "firebase/firestore";
 import { db } from "../../firebase/config";
 import {
     LineChart, Line, XAxis, YAxis, Tooltip,
@@ -25,18 +25,26 @@ export default function CitasMensuales() {
     async function fetchCitas() {
         setLoading(true);
         try {
-            const data = await getCitasDelMes(mes, anio);
+            const snap = await getDocs(collection(db, "citas"));
+            const data = snap.docs
+                .map((d) => ({ id: d.id, ...d.data() }))
+                .filter((c) => {
+                    if (!c.fecha) return false;
+                    const fecha = new Date(c.fecha);
+                    return fecha.getMonth() === mes && fecha.getFullYear() === anio;
+                });
+
             setCitas(data);
 
             const diasEnMes = new Date(anio, mes + 1, 0).getDate();
             const diasMap = {};
             for (let d = 1; d <= diasEnMes; d++) diasMap[d] = 0;
             data.forEach((c) => {
-                const dia = c.fecha.toDate().getDate();
+                const dia = new Date(c.fecha).getDate();
                 diasMap[dia] = (diasMap[dia] || 0) + 1;
             });
             setDiasData(
-                Object.entries(diasMap).map(([dia, total]) => ({ dia: `${dia}`, total }))
+                Object.entries(diasMap).map(([dia, total]) => ({ dia, total }))
             );
         } catch (err) {
             console.error("Error cargando citas:", err);
@@ -132,11 +140,11 @@ export default function CitasMensuales() {
                                     {citas.slice(0, 20).map((c) => (
                                         <tr key={c.id} style={styles.tr}>
                                             <td style={styles.td}>
-                                                {c.fecha?.toDate().toLocaleDateString("es-MX")}
+                                                {c.fecha ? new Date(c.fecha).toLocaleDateString("es-MX") : "—"}
                                             </td>
                                             <td style={styles.td}>{c.hora ?? "—"}</td>
-                                            <td style={styles.td}>{c.pacienteNombre ?? c.pacienteId ?? "—"}</td>
-                                            <td style={styles.td}>{c.medicoNombre ?? c.medicoId ?? "—"}</td>
+                                            <td style={styles.td}>{c.paciente ?? "—"}</td>
+                                            <td style={styles.td}>{c.medico ?? "—"}</td>
                                             <td style={styles.td}>
                                                 <span style={{ ...styles.badge, ...estadoStyle(c.estado) }}>
                                                     {c.estado ?? "—"}
