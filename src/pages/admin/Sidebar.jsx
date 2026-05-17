@@ -12,7 +12,6 @@ const navItems = [
   { to: "/admin/citas",      icon: "📅", label: "Citas mensuales" },
   { section: "Usuarios" },
   { to: "/admin/pacientes",  icon: "👥", label: "Pacientes" },
-  { to: "/admin/validar",    icon: "✅", label: "Validar cédulas" },
 ];
  
 export default function Sidebar() {
