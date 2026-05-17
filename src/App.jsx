@@ -8,7 +8,13 @@ import Login from "./pages/Login";
 import DashboardMedico from "./pages/DashboardMedico";
 import DashboardPaciente from "./pages/DashboardPaciente";
 import DashboardAsistente from "./pages/DashboardAsistente";
-import DashboardAdmin from "./pages/DashboardAdmin";
+//import DashboardAdmin from "./pages/DashboardAdmin";
+import AdminLayout from "./pages/admin/AdminLayout";
+import DashboardAdmin from "./pages/admin/DashboardAdmin";
+import Medicos from "./pages/admin/Medicos";
+import Pacientes from "./pages/admin/Pacientes";
+import Ingresos from "./pages/admin/Ingresos";
+import CitasMensuales from "./pages/admin/CitasMensuales";
 
 function RutaProtegida({ user, rolRequerido, children }) {
   if (!user) return <Navigate to="/" />;
@@ -66,6 +72,13 @@ export default function App() {
             <DashboardAdmin user={user} />
           </RutaProtegida>
         } />
+        <Route path="/admin" element={<AdminLayout />}>
+          <Route index element={<DashboardAdmin />} />
+          <Route path="medicos" element={<Medicos />} />
+          <Route path="pacientes" element={<Pacientes />} />
+          <Route path="ingresos" element={<Ingresos />} />
+          <Route path="citas" element={<CitasMensuales />} />
+        </Route>
       </Routes>
     </BrowserRouter>
   );
