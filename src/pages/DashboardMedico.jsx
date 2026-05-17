@@ -113,11 +113,11 @@ function Calendario({ diasConCitas }) {
 
 function Sidebar({ seccion, setSeccion, user, onLogout }) {
   const items = [
-  { id: "overview",  label: "Overview",  icon: <IconoInicio   style={{width:20, height:20, color: seccion==="overview"  ? "white" : C.soft}} /> },
-  { id: "citas",     label: "Mis citas", icon: <IconoCitas    style={{width:20, height:20, color: seccion==="citas"     ? "white" : C.soft}} /> },
-  { id: "proximas",  label: "Próximas",  icon: <IconoProximas style={{width:20, height:20, color: seccion==="proximas"  ? "white" : C.soft}} /> },
-  { id: "historial", label: "Historial", icon: <IconoHistorial style={{width:20, height:20, color: seccion==="historial" ? "white" : C.soft}} /> },
-];
+    { id: "overview",  label: "Overview",  Icon: IconoInicio },
+    { id: "citas",     label: "Mis citas", Icon: IconoCitas },
+    { id: "proximas",  label: "Próximas",  Icon: IconoProximas },
+    { id: "historial", label: "Historial", Icon: IconoHistorial },
+  ];
   return (
     <aside className="hidden md:flex w-56 min-h-screen flex-col flex-shrink-0" style={{background: C.dark}}>
       <div className="px-5 py-5">
@@ -137,14 +137,12 @@ function Sidebar({ seccion, setSeccion, user, onLogout }) {
         </div>
       </div>
       <nav className="flex-1 px-3 py-4 flex flex-col gap-1">
-        {items.map(item => (
-          <button key={item.id} onClick={() => setSeccion(item.id)}
+        {items.map(({ id, label, Icon }) => (
+          <button key={id} onClick={() => setSeccion(id)}
             className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all text-left"
-            style={{
-              background: seccion===item.id ? C.mid : "transparent",
-              color: seccion===item.id ? "white" : C.soft,
-            }}>
-            <span>{item.icon}</span>{item.label}
+            style={{background: seccion===id ? C.mid : "transparent", color: seccion===id ? "white" : C.soft}}>
+            <Icon style={{width:20, height:20, flexShrink:0}} />
+            {label}
           </button>
         ))}
       </nav>
@@ -152,7 +150,8 @@ function Sidebar({ seccion, setSeccion, user, onLogout }) {
         <button onClick={onLogout}
           className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm transition-all"
           style={{color: C.light}}>
-          <IconoSalir   style={{width:20, height:20, color: seccion==="overview"  ? "white" : C.soft}} /> Cerrar sesión
+          <IconoSalir style={{width:20, height:20, flexShrink:0}} />
+          Cerrar sesión
         </button>
       </div>
     </aside>
@@ -161,23 +160,25 @@ function Sidebar({ seccion, setSeccion, user, onLogout }) {
 
 function BottomNav({ seccion, setSeccion, onLogout }) {
   const items = [
-  { id: "overview",  label: "Overview",  icon: <IconoInicio   style={{width:20, height:20, color: seccion==="overview"  ? "white" : C.soft}} /> },
-  { id: "citas",     label: "Mis citas", icon: <IconoCitas    style={{width:20, height:20, color: seccion==="citas"     ? "white" : C.soft}} /> },
-  { id: "proximas",  label: "Próximas",  icon: <IconoProximas style={{width:20, height:20, color: seccion==="proximas"  ? "white" : C.soft}} /> },
-  { id: "historial", label: "Historial", icon: <IconoHistorial style={{width:20, height:20, color: seccion==="historial" ? "white" : C.soft}} /> },
-];
+    { id: "overview",  label: "Inicio",    Icon: IconoInicio },
+    { id: "citas",     label: "Citas",     Icon: IconoCitas },
+    { id: "proximas",  label: "Próximas",  Icon: IconoProximas },
+    { id: "historial", label: "Historial", Icon: IconoHistorial },
+  ];
   return (
     <nav className="md:hidden fixed bottom-0 left-0 right-0 z-50 flex" style={{background: "white", borderTop: `1px solid ${C.soft}`}}>
-      {items.map(item => (
-        <button key={item.id} onClick={() => setSeccion(item.id)}
+      {items.map(({ id, label, Icon }) => (
+        <button key={id} onClick={() => setSeccion(id)}
           className="flex-1 flex flex-col items-center py-2 gap-0.5 text-xs font-medium transition-all"
-          style={{color: seccion===item.id ? C.dark : C.light}}>
-          <span className="text-lg leading-none">{item.icon}</span>
-          <span>{item.label}</span>
+          style={{color: seccion===id ? C.dark : C.light}}>
+          <Icon style={{width:20, height:20}} />
+          <span>{label}</span>
         </button>
       ))}
-      <button onClick={onLogout} className="flex-1 flex flex-col items-center py-2 gap-0.5 text-xs font-medium" style={{color: C.light}}>
-        <IconoSalir   style={{width:20, height:20, color: seccion==="overview"  ? "white" : C.soft}} />
+      <button onClick={onLogout}
+        className="flex-1 flex flex-col items-center py-2 gap-0.5 text-xs font-medium"
+        style={{color: C.light}}>
+        <IconoSalir style={{width:20, height:20}} />
         <span>Salir</span>
       </button>
     </nav>
