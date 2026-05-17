@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { getCitasDelMes } from "../../models/citas";
+import { getCitasDelMes } from "../../models/Citas";
 import { db } from "../../firebase/config";
 import {
     LineChart, Line, XAxis, YAxis, Tooltip,
