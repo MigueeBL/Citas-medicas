@@ -3,10 +3,10 @@ import {
   BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer,
   PieChart, Pie, Cell, Legend
 } from "recharts";
-import { getPacientes, getPacientesNuevos } from "../../models/Usuarios";
-import { getMedicos } from "../../models/Medicos";
-import { getCitasDelMes } from "../../models/Citas";
-import { getPagosDelMes, calcularTotalIngresos } from "../../models/Pagos";
+import { getPacientes, getPacientesNuevos } from "../../models/usuarios";
+import { getMedicos } from "../../models/medicos";
+import { getCitasDelMes } from "../../models/citas";
+import { getPagosDelMes, calcularTotalIngresos } from "../../models/pagos";
 
 import { db } from "../../firebase/config.js"; // ajusta la ruta a tu config de Firebase
 

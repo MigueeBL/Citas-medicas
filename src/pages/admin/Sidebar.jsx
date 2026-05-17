@@ -6,12 +6,12 @@ const navItems = [
   { section: "General" },
   { to: "/admin",            icon: "🏠", label: "Dashboard" },
   { section: "Reportes" },
-  { to: "/admin/Medicos",    icon: "🩺", label: "Médicos" },
+  { to: "/admin/medicos",    icon: "🩺", label: "Médicos" },
   { to: "/admin/estadisticas", icon: "📊", label: "Estadísticas" },
-  { to: "/admin/Engresos",   icon: "💰", label: "Ingresos" },
-  { to: "/admin/Citas",      icon: "📅", label: "Citas mensuales" },
+  { to: "/admin/ingresos",   icon: "💰", label: "Ingresos" },
+  { to: "/admin/citas",      icon: "📅", label: "Citas mensuales" },
   { section: "Usuarios" },
-  { to: "/admin/Pacientes",  icon: "👥", label: "Pacientes" },
+  { to: "/admin/pacientes",  icon: "👥", label: "Pacientes" },
   { to: "/admin/validar",    icon: "✅", label: "Validar cédulas" },
 ];
  

@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { getPacientes, eliminarUsuario } from "../../models/Usuarios";
+import { getPacientes, eliminarUsuario } from "../../models/usuarios";
 import { db } from "../../firebase/config";
 
 const BLUE = "#185FA5";

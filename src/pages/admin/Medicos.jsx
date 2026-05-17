@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { getMedicos, toggleValidarMedico, toggleActivoMedico } from "../../models/Medicos";
+import { getMedicos, toggleValidarMedico, toggleActivoMedico } from "../../models/medicos";
 import { db } from "../../firebase/config";
 
 const BLUE = "#185FA5";
