@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { getMedicos } from "../../models/Medicos";
-import { getPagosDelMes, agruparIngresosPorMedico, calcularTotalIngresos } from "../../models/Pagos";
 import { db } from "../../firebase/config";
+import { collection, getDocs } from "firebase/firestore";
 import {
     BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell
 } from "recharts";
@@ -27,17 +27,44 @@ export default function Ingresos() {
     async function fetchIngresos() {
         setLoading(true);
         try {
-            const [pagos, medicosSnap] = await Promise.all([
-                getPagosDelMes(mes, anio),
-                getMedicos(),
-            ]);
+            // Trae todas las citas y filtra por mes en el cliente
+            const snap = await getDocs(collection(db, "citas"));
+            const todasCitas = snap.docs.map((d) => ({ id: d.id, ...d.data() }));
 
+            const citasMes = todasCitas.filter((c) => {
+                if (!c.fecha) return false;
+                const fecha = new Date(c.fecha);
+                return fecha.getMonth() === mes && fecha.getFullYear() === anio;
+            });
+
+            // Traer médicos para obtener nombres
+            const medicosSnap = await getDocs(collection(db, "usuarios"));
             const medicosMap = {};
-            medicosSnap.forEach((m) => { medicosMap[m.id] = m; });
+            medicosSnap.docs.forEach((d) => {
+                const data = d.data();
+                if (data.rol === "medico") medicosMap[d.id] = data;
+            });
 
-            const resultado = agruparIngresosPorMedico(pagos, medicosMap);
+            // Agrupar por médico usando el campo "medico" de cada cita
+            const ingresosMap = {};
+            citasMes.forEach((c) => {
+                const mid = c.medico; // campo medico en tu colección citas
+                if (!ingresosMap[mid]) {
+                    ingresosMap[mid] = {
+                        medicoId: mid,
+                        nombre: medicosMap[mid]?.nombre ?? c.medico ?? "Médico desconocido",
+                        especialidad: medicosMap[mid]?.especialidad ?? "—",
+                        citas: 0,
+                        ingresos: 0,
+                    };
+                }
+                ingresosMap[mid].citas += 1;
+                ingresosMap[mid].ingresos += c.monto ?? 0;
+            });
+
+            const resultado = Object.values(ingresosMap).sort((a, b) => b.ingresos - a.ingresos);
             setDatos(resultado);
-            setTotal(calcularTotalIngresos(pagos));
+            setTotal(resultado.reduce((acc, r) => acc + r.ingresos, 0));
         } catch (err) {
             console.error("Error cargando ingresos:", err);
         } finally {
