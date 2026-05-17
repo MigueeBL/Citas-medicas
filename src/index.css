@@ -1,1 +1,7 @@
+@import url('https://fonts.googleapis.com/css2?family=Montserrat:ital,wght@0,100..900;1,100..900&family=Stack+Sans+Headline:wght@200..700&display=swap');
+
 @import "tailwindcss";
+
+body {
+  font-family: 'Stack Sans Headline', sans-serif;
+}
