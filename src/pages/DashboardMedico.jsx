@@ -1,6 +1,7 @@
-import { useState } from "react";
-import { auth } from "../firebase/config";
+import { useState, useEffect } from "react";
+import { auth, db } from "../firebase/config";
 import { signOut } from "firebase/auth";
+import { collection, query, where, onSnapshot } from "firebase/firestore";
 import { useNavigate } from "react-router-dom";
 import logo from "../assets/logo.png";
 import IconoInicio from "../assets/iconos/icono_inicio.svg?react";
@@ -9,30 +10,16 @@ import IconoProximas from "../assets/iconos/icono_proximas.svg?react";
 import IconoHistorial from "../assets/iconos/icono_historial.svg?react";
 import IconoSalir from "../assets/iconos/icono_salir.svg?react";
 
-
-const CITAS_EJEMPLO = [
-  { id: 1, paciente: "María González", tipo: "Consulta general", fecha: "2026-05-18", hora: "10:00 AM", estado: "confirmada", avatar: "MG" },
-  { id: 2, paciente: "Carlos López",   tipo: "Seguimiento",      fecha: "2026-05-19", hora: "11:00 AM", estado: "pendiente",  avatar: "CL" },
-  { id: 3, paciente: "Ana Torres",     tipo: "Primera consulta", fecha: "2026-05-21", hora: "03:00 PM", estado: "confirmada", avatar: "AT" },
-  { id: 4, paciente: "Luis Mendoza",   tipo: "Revisión",         fecha: "2026-05-22", hora: "09:30 AM", estado: "confirmada", avatar: "LM" },
-  { id: 5, paciente: "Rosa Díaz",      tipo: "Consulta general", fecha: "2026-05-16", hora: "09:00 AM", estado: "confirmada", avatar: "RD" },
-  { id: 6, paciente: "Pedro Ruiz",     tipo: "Seguimiento",      fecha: "2026-05-16", hora: "10:30 AM", estado: "pendiente",  avatar: "PR" },
-  { id: 7, paciente: "Laura Vega",     tipo: "Revisión",         fecha: "2026-05-16", hora: "12:00 PM", estado: "confirmada", avatar: "LV" },
-  { id: 8, paciente: "Jorge Mora",     tipo: "Primera consulta", fecha: "2026-05-16", hora: "04:00 PM", estado: "confirmada", avatar: "JM" },
-];
-
-const DIAS_CON_CITAS = [4,5,6,7,8,11,12,13,14,15,16,18,19,20,21,22,25,26,28];
 const MESES = ["Enero","Febrero","Marzo","Abril","Mayo","Junio","Julio","Agosto","Septiembre","Octubre","Noviembre","Diciembre"];
 const DIAS_SEMANA = ["DOM","LUN","MAR","MIÉ","JUE","VIE","SÁB"];
 
-
 const C = {
-  dark:    "#2f4157",
-  mid:     "#567c8e",
-  light:   "#a2c1d1",
-  soft:    "#c7d9e5",
-  pale:    "#e3ecf2",
-  bg:      "#f3f6f9",
+  dark:  "#2f4157",
+  mid:   "#567c8e",
+  light: "#a2c1d1",
+  soft:  "#c7d9e5",
+  pale:  "#e3ecf2",
+  bg:    "#f3f6f9",
 };
 
 function getToday() {
@@ -40,33 +27,42 @@ function getToday() {
   return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}-${String(d.getDate()).padStart(2,"0")}`;
 }
 
-function avatarColor(initials) {
+function avatarColor(str) {
   const colors = [C.dark, C.mid, "#3d6b7d", "#4a7a8a", "#2a5068", "#1e3a4f"];
-  const idx = (initials.charCodeAt(0) + (initials.charCodeAt(1)||0)) % colors.length;
+  const idx = (str?.charCodeAt(0)||0) % colors.length;
   return colors[idx];
 }
 
+function getInitials(nombre) {
+  if (!nombre) return "??";
+  return nombre.split(" ").filter(w => w.length > 2).map(w => w[0]).join("").slice(0,2).toUpperCase();
+}
+
 function EstadoBadge({ estado }) {
-  if (estado === "confirmada") return (
-    <span style={{background: C.pale, color: C.dark}} className="text-xs px-3 py-1 rounded-full font-medium whitespace-nowrap border" style2={{borderColor: C.soft}}>
-      Confirmada
-    </span>
-  );
-  if (estado === "pendiente") return (
-    <span className="text-xs px-3 py-1 rounded-full bg-amber-100 text-amber-700 font-medium whitespace-nowrap">
-      Pendiente
-    </span>
-  );
+  if (estado === "confirmada") return <span className="text-xs px-3 py-1 rounded-full font-medium whitespace-nowrap" style={{background: C.pale, color: C.dark}}>Confirmada</span>;
+  if (estado === "pendiente")  return <span className="text-xs px-3 py-1 rounded-full bg-amber-100 text-amber-700 font-medium whitespace-nowrap">Pendiente</span>;
+  if (estado === "cobrada")    return <span className="text-xs px-3 py-1 rounded-full bg-green-100 text-green-700 font-medium whitespace-nowrap">Cobrada</span>;
   return <span className="text-xs px-3 py-1 rounded-full bg-red-100 text-red-600 font-medium whitespace-nowrap">Cancelada</span>;
 }
 
-function Calendario({ diasConCitas }) {
+function Calendario({ citas }) {
   const hoy = new Date();
   const [mes, setMes] = useState(hoy.getMonth());
   const [anio, setAnio] = useState(hoy.getFullYear());
   const primerDia = new Date(anio, mes, 1).getDay();
   const diasEnMes = new Date(anio, mes + 1, 0).getDate();
   const diasPrevios = new Date(anio, mes, 0).getDate();
+
+  // Días del mes actual que tienen citas reales
+  const diasConCitas = [...new Set(
+    citas
+      .filter(c => {
+        const f = new Date(c.fecha + "T00:00:00");
+        return f.getMonth() === mes && f.getFullYear() === anio && c.estado !== "cancelada";
+      })
+      .map(c => new Date(c.fecha + "T00:00:00").getDate())
+  )];
+
   const celdas = [];
   for (let i = primerDia - 1; i >= 0; i--) celdas.push({ dia: diasPrevios - i, actual: false });
   for (let i = 1; i <= diasEnMes; i++) celdas.push({ dia: i, actual: true });
@@ -79,12 +75,12 @@ function Calendario({ diasConCitas }) {
         <h3 className="text-sm font-semibold" style={{color: C.dark}}>Calendario de citas</h3>
         <div className="flex items-center gap-2">
           <button onClick={() => { if(mes===0){setMes(11);setAnio(a=>a-1);}else setMes(m=>m-1); }}
-            className="w-6 h-6 flex items-center justify-center rounded-full text-sm transition-all"
-            style={{color: C.mid}} onMouseEnter={e=>e.target.style.background=C.pale} onMouseLeave={e=>e.target.style.background="transparent"}>‹</button>
+            className="w-6 h-6 flex items-center justify-center rounded-full text-sm"
+            style={{color: C.mid}}>‹</button>
           <span className="text-xs font-medium" style={{color: C.dark}}>{MESES[mes].slice(0,3)} {anio}</span>
           <button onClick={() => { if(mes===11){setMes(0);setAnio(a=>a+1);}else setMes(m=>m+1); }}
-            className="w-6 h-6 flex items-center justify-center rounded-full text-sm transition-all"
-            style={{color: C.mid}} onMouseEnter={e=>e.target.style.background=C.pale} onMouseLeave={e=>e.target.style.background="transparent"}>›</button>
+            className="w-6 h-6 flex items-center justify-center rounded-full text-sm"
+            style={{color: C.mid}}>›</button>
         </div>
       </div>
       <div className="grid grid-cols-7 mb-2">
@@ -111,6 +107,7 @@ function Calendario({ diasConCitas }) {
   );
 }
 
+// ── Sidebar desktop ────────────────────────────────────────────────────────
 function Sidebar({ seccion, setSeccion, user, onLogout }) {
   const items = [
     { id: "overview",  label: "Overview",  Icon: IconoInicio },
@@ -133,7 +130,7 @@ function Sidebar({ seccion, setSeccion, user, onLogout }) {
         </div>
         <div className="text-center">
           <p className="font-semibold text-sm text-white">{user?.nombre||"Dr. Médico"}</p>
-          <p className="text-xs" style={{color: C.light}}>{user?.especialidad||"Médico general"}</p>
+          <p className="text-xs" style={{color: C.light}}>{user?.especialidad||"Médico"}</p>
         </div>
       </div>
       <nav className="flex-1 px-3 py-4 flex flex-col gap-1">
@@ -147,9 +144,7 @@ function Sidebar({ seccion, setSeccion, user, onLogout }) {
         ))}
       </nav>
       <div className="px-3 pb-5 pt-3" style={{borderTop: `1px solid ${C.mid}40`}}>
-        <button onClick={onLogout}
-          className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm transition-all"
-          style={{color: C.light}}>
+        <button onClick={onLogout} className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm transition-all" style={{color: C.light}}>
           <IconoSalir style={{width:20, height:20, flexShrink:0}} />
           Cerrar sesión
         </button>
@@ -158,6 +153,7 @@ function Sidebar({ seccion, setSeccion, user, onLogout }) {
   );
 }
 
+// ── Bottom nav móvil ───────────────────────────────────────────────────────
 function BottomNav({ seccion, setSeccion, onLogout }) {
   const items = [
     { id: "overview",  label: "Inicio",    Icon: IconoInicio },
@@ -175,9 +171,7 @@ function BottomNav({ seccion, setSeccion, onLogout }) {
           <span>{label}</span>
         </button>
       ))}
-      <button onClick={onLogout}
-        className="flex-1 flex flex-col items-center py-2 gap-0.5 text-xs font-medium"
-        style={{color: C.light}}>
+      <button onClick={onLogout} className="flex-1 flex flex-col items-center py-2 gap-0.5 text-xs font-medium" style={{color: C.light}}>
         <IconoSalir style={{width:20, height:20}} />
         <span>Salir</span>
       </button>
@@ -185,11 +179,12 @@ function BottomNav({ seccion, setSeccion, onLogout }) {
   );
 }
 
+// ── Header móvil ───────────────────────────────────────────────────────────
 function HeaderMovil({ user, seccion }) {
   const titulos = { overview:"Overview", citas:"Mis citas", proximas:"Próximas", historial:"Historial" };
   return (
     <div className="md:hidden flex items-center justify-between px-4 py-3 sticky top-0 z-40"
-      style={{background: "white", borderBottom: `1px solid ${C.soft}`}}>
+      style={{background:"white", borderBottom:`1px solid ${C.soft}`}}>
       <div className="flex items-center gap-2">
         <img src={logo} alt="Logo" className="w-7 h-7 object-contain" />
         <span className="font-semibold text-sm" style={{color: C.dark}}>{titulos[seccion]}</span>
@@ -201,13 +196,17 @@ function HeaderMovil({ user, seccion }) {
   );
 }
 
+// ── Overview ───────────────────────────────────────────────────────────────
 function Overview({ user, citas, setSeccion }) {
   const hoy = getToday();
-  const citasHoy = citas.filter(c => c.fecha === hoy);
-  const confirmadas = citasHoy.filter(c => c.estado==="confirmada").length;
-  const pendientes  = citasHoy.filter(c => c.estado==="pendiente").length;
-  const proxima = citas.filter(c => c.fecha >= hoy).sort((a,b) => a.fecha.localeCompare(b.fecha))[0];
-  const proximas = citas.filter(c => c.fecha > hoy).sort((a,b) => a.fecha.localeCompare(b.fecha)).slice(0,4);
+  const citasHoy    = citas.filter(c => c.fecha === hoy && c.estado !== "cancelada");
+  const confirmadas = citasHoy.filter(c => c.estado === "confirmada").length;
+  const pendientes  = citasHoy.filter(c => c.estado === "pendiente").length;
+  const proxima     = citas.filter(c => c.fecha >= hoy && c.estado !== "cancelada")
+                           .sort((a,b) => a.fecha.localeCompare(b.fecha))[0];
+  const proximas    = citas.filter(c => c.fecha > hoy && c.estado !== "cancelada")
+                           .sort((a,b) => a.fecha.localeCompare(b.fecha)).slice(0,4);
+  const pacientesUnicos = new Set(citas.filter(c => c.estado !== "cancelada").map(c => c.pacienteId)).size;
   const fechaHoy = new Date();
 
   function diasRestantes(fecha) {
@@ -226,8 +225,7 @@ function Overview({ user, citas, setSeccion }) {
           </h1>
           <p className="text-sm mt-0.5" style={{color: C.mid}}>Aquí tienes un resumen de tus citas y pacientes.</p>
         </div>
-        <div className="flex items-center gap-2 rounded-xl px-3 py-2 shadow-sm"
-          style={{background: "white", border: `1px solid ${C.soft}`}}>
+        <div className="flex items-center gap-2 rounded-xl px-3 py-2 shadow-sm" style={{background:"white", border:`1px solid ${C.soft}`}}>
           <span className="text-sm">📅</span>
           <div>
             <p className="text-xs font-semibold" style={{color: C.dark}}>{fechaHoy.toLocaleDateString("es-MX",{day:"numeric",month:"long",year:"numeric"})}</p>
@@ -245,7 +243,7 @@ function Overview({ user, citas, setSeccion }) {
       {/* Widgets */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-4">
         {/* Citas hoy */}
-        <div className="rounded-2xl p-4 shadow-sm" style={{background: "white", border: `1px solid ${C.soft}`}}>
+        <div className="rounded-2xl p-4 shadow-sm" style={{background:"white", border:`1px solid ${C.soft}`}}>
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 rounded-xl flex items-center justify-center text-lg flex-shrink-0" style={{background: C.pale}}>📅</div>
             <div>
@@ -253,7 +251,7 @@ function Overview({ user, citas, setSeccion }) {
               <p className="text-2xl font-bold" style={{color: C.dark}}>{citasHoy.length}</p>
             </div>
           </div>
-          <div className="flex gap-2 mt-3">
+          <div className="flex gap-2 mt-3 flex-wrap">
             <span className="text-xs px-2 py-0.5 rounded-full font-medium" style={{background: C.pale, color: C.dark}}>{confirmadas} confirm.</span>
             <span className="text-xs px-2 py-0.5 rounded-full font-medium bg-amber-100 text-amber-700">{pendientes} pend.</span>
           </div>
@@ -261,15 +259,15 @@ function Overview({ user, citas, setSeccion }) {
         </div>
 
         {/* Próxima cita */}
-        <div className="rounded-2xl p-4 shadow-sm" style={{background: "white", border: `1px solid ${C.soft}`}}>
+        <div className="rounded-2xl p-4 shadow-sm" style={{background:"white", border:`1px solid ${C.soft}`}}>
           <div className="flex items-center gap-3 mb-2">
             <div className="w-10 h-10 rounded-xl flex items-center justify-center text-lg flex-shrink-0" style={{background: C.pale}}>👤</div>
             <p className="text-xs font-medium" style={{color: C.mid}}>Próxima cita</p>
           </div>
           {proxima ? (
             <>
-              <p className="text-base font-bold" style={{color: C.dark}}>{proxima.paciente}</p>
-              <p className="text-xs" style={{color: C.mid}}>{proxima.tipo}</p>
+              <p className="text-base font-bold truncate" style={{color: C.dark}}>{proxima.paciente}</p>
+              <p className="text-xs" style={{color: C.mid}}>{proxima.especialidad || "Consulta"}</p>
               <p className="text-xs font-medium mt-1" style={{color: C.dark}}>
                 {new Date(proxima.fecha+"T00:00:00").toLocaleDateString("es-MX",{day:"numeric",month:"short"})} · {proxima.hora}
               </p>
@@ -280,14 +278,14 @@ function Overview({ user, citas, setSeccion }) {
           ) : <p className="text-xs" style={{color: C.light}}>Sin citas próximas</p>}
         </div>
 
-        {/* Pacientes atendidos */}
-        <div className="rounded-2xl p-4 shadow-sm" style={{background: "white", border: `1px solid ${C.soft}`}}>
+        {/* Pacientes */}
+        <div className="rounded-2xl p-4 shadow-sm" style={{background:"white", border:`1px solid ${C.soft}`}}>
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 rounded-xl flex items-center justify-center text-lg flex-shrink-0" style={{background: C.pale}}>👥</div>
             <div>
-              <p className="text-xs" style={{color: C.mid}}>Pacientes atendidos</p>
-              <p className="text-2xl font-bold" style={{color: C.dark}}>28</p>
-              <p className="text-xs" style={{color: C.light}}>esta semana</p>
+              <p className="text-xs" style={{color: C.mid}}>Pacientes totales</p>
+              <p className="text-2xl font-bold" style={{color: C.dark}}>{pacientesUnicos}</p>
+              <p className="text-xs" style={{color: C.light}}>{citas.length} citas en total</p>
             </div>
           </div>
         </div>
@@ -295,46 +293,61 @@ function Overview({ user, citas, setSeccion }) {
 
       {/* Calendario + próximas */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        <Calendario diasConCitas={DIAS_CON_CITAS} />
+        <Calendario citas={citas} />
 
-        <div className="rounded-2xl p-4 shadow-sm" style={{background: "white", border: `1px solid ${C.soft}`}}>
+        <div className="rounded-2xl p-4 shadow-sm" style={{background:"white", border:`1px solid ${C.soft}`}}>
           <h3 className="text-sm font-semibold mb-4" style={{color: C.dark}}>Próximas citas</h3>
-          <div className="flex flex-col gap-3">
-            {proximas.map(cita => {
-              const fecha = new Date(cita.fecha+"T00:00:00");
-              return (
-                <div key={cita.id} className="flex items-center gap-3">
-                  <div className="text-center flex-shrink-0 w-9">
-                    <p className="text-xs font-bold uppercase" style={{color: C.mid}}>{MESES[fecha.getMonth()].slice(0,3)}</p>
-                    <p className="text-base font-bold leading-none" style={{color: C.dark}}>{fecha.getDate()}</p>
-                  </div>
-                  <div className="w-px h-8 flex-shrink-0" style={{background: C.soft}}></div>
-                  <div className="flex items-center gap-2 flex-1 min-w-0">
-                    <div className="w-8 h-8 rounded-full flex items-center justify-center text-white text-xs font-bold flex-shrink-0"
-                      style={{background: avatarColor(cita.avatar)}}>{cita.avatar}</div>
-                    <div className="min-w-0">
-                      <p className="text-xs font-medium truncate" style={{color: C.dark}}>{cita.paciente}</p>
-                      <p className="text-xs" style={{color: C.light}}>{cita.hora}</p>
+          {proximas.length === 0 ? (
+            <p className="text-sm text-center py-6" style={{color: C.light}}>No hay citas próximas</p>
+          ) : (
+            <div className="flex flex-col gap-3">
+              {proximas.map(cita => {
+                const fecha = new Date(cita.fecha+"T00:00:00");
+                return (
+                  <div key={cita.id} className="flex items-center gap-3">
+                    <div className="text-center flex-shrink-0 w-9">
+                      <p className="text-xs font-bold uppercase" style={{color: C.mid}}>{MESES[fecha.getMonth()].slice(0,3)}</p>
+                      <p className="text-base font-bold leading-none" style={{color: C.dark}}>{fecha.getDate()}</p>
                     </div>
+                    <div className="w-px h-8 flex-shrink-0" style={{background: C.soft}}></div>
+                    <div className="flex items-center gap-2 flex-1 min-w-0">
+                      <div className="w-7 h-7 rounded-full flex items-center justify-center text-white text-xs font-bold flex-shrink-0"
+                        style={{background: avatarColor(cita.paciente)}}>
+                        {getInitials(cita.paciente)}
+                      </div>
+                      <div className="min-w-0">
+                        <p className="text-xs font-medium truncate" style={{color: C.dark}}>{cita.paciente}</p>
+                        <p className="text-xs" style={{color: C.light}}>{cita.hora}</p>
+                      </div>
+                    </div>
+                    <EstadoBadge estado={cita.estado} />
                   </div>
-                  <EstadoBadge estado={cita.estado} />
-                </div>
-              );
-            })}
-          </div>
-          <button onClick={() => setSeccion("proximas")} className="mt-4 text-xs font-medium" style={{color: C.mid}}>Ver todas →</button>
+                );
+              })}
+            </div>
+          )}
+          <button onClick={() => setSeccion("proximas")} className="mt-3 text-xs font-medium" style={{color: C.mid}}>Ver todas →</button>
         </div>
       </div>
     </div>
   );
 }
 
+// ── Mis Citas ──────────────────────────────────────────────────────────────
 function MisCitas({ citas }) {
   const [vista, setVista] = useState("dia");
   const hoy = getToday();
-  const filtradas = vista==="dia" ? citas.filter(c=>c.fecha===hoy)
-    : vista==="semana" ? citas.filter(c=>{ const diff=(new Date(c.fecha+"T00:00:00")-new Date())/86400000; return diff>=-1&&diff<=7; })
+
+  const filtradas = vista==="dia"
+    ? citas.filter(c => c.fecha === hoy)
+    : vista==="semana"
+    ? citas.filter(c => {
+        const diff = (new Date(c.fecha+"T00:00:00") - new Date()) / 86400000;
+        return diff >= -1 && diff <= 7;
+      })
     : citas;
+
+  const ordenadas = [...filtradas].sort((a,b) => a.fecha.localeCompare(b.fecha) || a.hora.localeCompare(b.hora));
 
   return (
     <div className="flex-1 p-4 md:p-6 overflow-y-auto pb-20 md:pb-6" style={{background: C.bg}}>
@@ -343,7 +356,7 @@ function MisCitas({ citas }) {
           <h2 className="text-lg md:text-xl font-bold" style={{color: C.dark}}>Mis citas</h2>
           <p className="text-xs md:text-sm" style={{color: C.mid}}>Gestiona y revisa tus citas</p>
         </div>
-        <div className="flex rounded-xl overflow-hidden shadow-sm" style={{border: `1px solid ${C.soft}`}}>
+        <div className="flex rounded-xl overflow-hidden shadow-sm" style={{border:`1px solid ${C.soft}`}}>
           {["dia","semana","mes"].map(v => (
             <button key={v} onClick={() => setVista(v)}
               className="px-3 py-1.5 text-xs font-medium transition-all"
@@ -353,27 +366,32 @@ function MisCitas({ citas }) {
           ))}
         </div>
       </div>
-      {filtradas.length===0 ? (
-        <div className="rounded-2xl p-10 text-center shadow-sm" style={{background: "white", border: `1px solid ${C.soft}`}}>
+
+      {ordenadas.length === 0 ? (
+        <div className="rounded-2xl p-10 text-center shadow-sm" style={{background:"white", border:`1px solid ${C.soft}`}}>
           <p className="text-4xl mb-3">📅</p>
           <p className="text-sm" style={{color: C.mid}}>No hay citas para este período</p>
         </div>
       ) : (
         <div className="flex flex-col gap-3">
-          {filtradas.map(cita => (
+          {ordenadas.map(cita => (
             <div key={cita.id} className="rounded-2xl p-3 md:p-4 shadow-sm flex items-center gap-3"
-              style={{background: "white", border: `1px solid ${C.soft}`}}>
+              style={{background:"white", border:`1px solid ${C.soft}`}}>
               <div className="w-1 h-10 rounded-full flex-shrink-0"
-                style={{background: cita.estado==="confirmada" ? C.mid : "#f59e0b"}}></div>
+                style={{background: cita.estado==="confirmada" ? C.mid : cita.estado==="cobrada" ? "#10b981" : "#f59e0b"}}></div>
               <div className="w-9 h-9 rounded-full flex items-center justify-center text-white text-xs font-bold flex-shrink-0"
-                style={{background: avatarColor(cita.avatar)}}>{cita.avatar}</div>
+                style={{background: avatarColor(cita.paciente)}}>
+                {getInitials(cita.paciente)}
+              </div>
               <div className="flex-1 min-w-0">
                 <p className="font-semibold text-sm truncate" style={{color: C.dark}}>{cita.paciente}</p>
-                <p className="text-xs truncate" style={{color: C.mid}}>{cita.tipo}</p>
+                <p className="text-xs truncate" style={{color: C.mid}}>{cita.especialidad || "Consulta"}</p>
               </div>
               <div className="text-right flex-shrink-0">
                 <p className="text-xs font-medium" style={{color: C.dark}}>{cita.hora}</p>
-                <p className="text-xs" style={{color: C.light}}>{new Date(cita.fecha+"T00:00:00").toLocaleDateString("es-MX",{day:"numeric",month:"short"})}</p>
+                <p className="text-xs" style={{color: C.light}}>
+                  {new Date(cita.fecha+"T00:00:00").toLocaleDateString("es-MX",{day:"numeric",month:"short"})}
+                </p>
               </div>
               <EstadoBadge estado={cita.estado} />
             </div>
@@ -384,74 +402,45 @@ function MisCitas({ citas }) {
   );
 }
 
+// ── Próximas ───────────────────────────────────────────────────────────────
 function Proximas({ citas }) {
   const hoy = getToday();
-  const proximas = citas.filter(c=>c.fecha>=hoy).sort((a,b)=>a.fecha.localeCompare(b.fecha));
+  const proximas = citas
+    .filter(c => c.fecha >= hoy && c.estado !== "cancelada")
+    .sort((a,b) => a.fecha.localeCompare(b.fecha) || a.hora.localeCompare(b.hora));
+
   return (
     <div className="flex-1 p-4 md:p-6 overflow-y-auto pb-20 md:pb-6" style={{background: C.bg}}>
       <div className="mb-4">
         <h2 className="text-lg md:text-xl font-bold" style={{color: C.dark}}>Próximas citas</h2>
         <p className="text-xs md:text-sm" style={{color: C.mid}}>Citas agendadas a partir de hoy</p>
       </div>
-      <div className="flex flex-col gap-3">
-        {proximas.map(cita => {
-          const fecha = new Date(cita.fecha+"T00:00:00");
-          return (
-            <div key={cita.id} className="rounded-2xl p-3 md:p-4 shadow-sm flex items-center gap-3"
-              style={{background: "white", border: `1px solid ${C.soft}`}}>
-              <div className="text-center flex-shrink-0 w-10">
-                <p className="text-xs font-bold uppercase" style={{color: C.mid}}>{MESES[fecha.getMonth()].slice(0,3)}</p>
-                <p className="text-xl font-bold leading-none" style={{color: C.dark}}>{fecha.getDate()}</p>
-              </div>
-              <div className="w-px h-10 flex-shrink-0" style={{background: C.soft}}></div>
-              <div className="w-9 h-9 rounded-full flex items-center justify-center text-white text-xs font-bold flex-shrink-0"
-                style={{background: avatarColor(cita.avatar)}}>{cita.avatar}</div>
-              <div className="flex-1 min-w-0">
-                <p className="font-semibold text-sm truncate" style={{color: C.dark}}>{cita.paciente}</p>
-                <p className="text-xs" style={{color: C.mid}}>{cita.tipo} · {cita.hora}</p>
-              </div>
-              <EstadoBadge estado={cita.estado} />
-            </div>
-          );
-        })}
-      </div>
-    </div>
-  );
-}
-
-function Historial({ citas }) {
-  const hoy = getToday();
-  const pasadas = citas.filter(c=>c.fecha<hoy).sort((a,b)=>b.fecha.localeCompare(a.fecha));
-  return (
-    <div className="flex-1 p-4 md:p-6 overflow-y-auto pb-20 md:pb-6" style={{background: C.bg}}>
-      <div className="mb-4">
-        <h2 className="text-lg md:text-xl font-bold" style={{color: C.dark}}>Historial de pacientes</h2>
-        <p className="text-xs md:text-sm" style={{color: C.mid}}>Citas anteriores atendidas</p>
-      </div>
-      {pasadas.length===0 ? (
-        <div className="rounded-2xl p-10 text-center shadow-sm" style={{background: "white", border: `1px solid ${C.soft}`}}>
-          <p className="text-4xl mb-3">📋</p>
-          <p className="text-sm" style={{color: C.mid}}>Sin historial por el momento</p>
+      {proximas.length === 0 ? (
+        <div className="rounded-2xl p-10 text-center shadow-sm" style={{background:"white", border:`1px solid ${C.soft}`}}>
+          <p className="text-4xl mb-3">📅</p>
+          <p className="text-sm" style={{color: C.mid}}>No hay citas próximas</p>
         </div>
       ) : (
         <div className="flex flex-col gap-3">
-          {pasadas.map(cita => {
+          {proximas.map(cita => {
             const fecha = new Date(cita.fecha+"T00:00:00");
             return (
               <div key={cita.id} className="rounded-2xl p-3 md:p-4 shadow-sm flex items-center gap-3"
-                style={{background: "white", border: `1px solid ${C.soft}`}}>
+                style={{background:"white", border:`1px solid ${C.soft}`}}>
+                <div className="text-center flex-shrink-0 w-10">
+                  <p className="text-xs font-bold uppercase" style={{color: C.mid}}>{MESES[fecha.getMonth()].slice(0,3)}</p>
+                  <p className="text-xl font-bold leading-none" style={{color: C.dark}}>{fecha.getDate()}</p>
+                </div>
+                <div className="w-px h-10 flex-shrink-0" style={{background: C.soft}}></div>
                 <div className="w-9 h-9 rounded-full flex items-center justify-center text-white text-xs font-bold flex-shrink-0"
-                  style={{background: avatarColor(cita.avatar)}}>{cita.avatar}</div>
+                  style={{background: avatarColor(cita.paciente)}}>
+                  {getInitials(cita.paciente)}
+                </div>
                 <div className="flex-1 min-w-0">
                   <p className="font-semibold text-sm truncate" style={{color: C.dark}}>{cita.paciente}</p>
-                  <p className="text-xs" style={{color: C.mid}}>{cita.tipo}</p>
+                  <p className="text-xs" style={{color: C.mid}}>{cita.especialidad || "Consulta"} · {cita.hora}</p>
                 </div>
-                <div className="text-right flex-shrink-0">
-                  <p className="text-xs font-medium" style={{color: C.dark}}>{cita.hora}</p>
-                  <p className="text-xs" style={{color: C.light}}>{fecha.toLocaleDateString("es-MX",{day:"numeric",month:"short",year:"numeric"})}</p>
-                </div>
-                <span className="text-xs px-2 py-1 rounded-full font-medium whitespace-nowrap"
-                  style={{background: C.pale, color: C.mid}}>Atendida</span>
+                <EstadoBadge estado={cita.estado} />
               </div>
             );
           })}
@@ -461,11 +450,82 @@ function Historial({ citas }) {
   );
 }
 
+// ── Historial ──────────────────────────────────────────────────────────────
+function Historial({ citas }) {
+  const hoy = getToday();
+  const pasadas = citas
+    .filter(c => c.fecha < hoy)
+    .sort((a,b) => b.fecha.localeCompare(a.fecha));
+
+  return (
+    <div className="flex-1 p-4 md:p-6 overflow-y-auto pb-20 md:pb-6" style={{background: C.bg}}>
+      <div className="mb-4">
+        <h2 className="text-lg md:text-xl font-bold" style={{color: C.dark}}>Historial de pacientes</h2>
+        <p className="text-xs md:text-sm" style={{color: C.mid}}>Citas anteriores atendidas</p>
+      </div>
+      {pasadas.length === 0 ? (
+        <div className="rounded-2xl p-10 text-center shadow-sm" style={{background:"white", border:`1px solid ${C.soft}`}}>
+          <p className="text-4xl mb-3">📋</p>
+          <p className="text-sm" style={{color: C.mid}}>Sin historial por el momento</p>
+        </div>
+      ) : (
+        <div className="flex flex-col gap-3">
+          {pasadas.map(cita => {
+            const fecha = new Date(cita.fecha+"T00:00:00");
+            return (
+              <div key={cita.id} className="rounded-2xl p-3 md:p-4 shadow-sm flex items-center gap-3"
+                style={{background:"white", border:`1px solid ${C.soft}`}}>
+                <div className="w-9 h-9 rounded-full flex items-center justify-center text-white text-xs font-bold flex-shrink-0"
+                  style={{background: avatarColor(cita.paciente)}}>
+                  {getInitials(cita.paciente)}
+                </div>
+                <div className="flex-1 min-w-0">
+                  <p className="font-semibold text-sm truncate" style={{color: C.dark}}>{cita.paciente}</p>
+                  <p className="text-xs" style={{color: C.mid}}>{cita.especialidad || "Consulta"}</p>
+                </div>
+                <div className="text-right flex-shrink-0">
+                  <p className="text-xs font-medium" style={{color: C.dark}}>{cita.hora}</p>
+                  <p className="text-xs" style={{color: C.light}}>
+                    {fecha.toLocaleDateString("es-MX",{day:"numeric",month:"short",year:"numeric"})}
+                  </p>
+                </div>
+                <EstadoBadge estado={cita.estado} />
+              </div>
+            );
+          })}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ── Dashboard principal ────────────────────────────────────────────────────
 export default function DashboardMedico({ user }) {
   const [seccion, setSeccion] = useState("overview");
-  const [citas] = useState(CITAS_EJEMPLO);
+  const [citas, setCitas] = useState([]);
+  const [cargando, setCargando] = useState(true);
   const navigate = useNavigate();
+
+  // Escuchar en tiempo real solo las citas de este médico
+  useEffect(() => {
+    if (!user?.uid) return;
+    const unsub = onSnapshot(
+      query(collection(db, "citas"), where("medicoId", "==", user.uid)),
+      (snap) => {
+        setCitas(snap.docs.map(d => ({ id: d.id, ...d.data() })));
+        setCargando(false);
+      }
+    );
+    return () => unsub();
+  }, [user?.uid]);
+
   const handleLogout = async () => { await signOut(auth); navigate("/"); };
+
+  if (cargando) return (
+    <div className="flex items-center justify-center h-screen text-sm" style={{color: C.mid}}>
+      Cargando tus citas...
+    </div>
+  );
 
   return (
     <div className="flex min-h-screen" style={{background: C.bg}}>
