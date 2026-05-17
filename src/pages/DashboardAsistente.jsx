@@ -1,6 +1,8 @@
 import { useState, useEffect } from "react"
 import { db } from "../firebase/config"
 import { collection, onSnapshot, doc, updateDoc } from "firebase/firestore"
+import SeccionReportes from "./SeccionReportes"  // ← importa el nuevo componente
+import logo from "../assets/logo.png"
 
 const HORARIOS_MEDICO = {
   "Dr. Ramírez":  ["09:00","11:00","16:00"],
@@ -18,9 +20,9 @@ const COLOR = {
 function Navbar({ seccion }) {
   return (
     <nav className="bg-white shadow-sm px-8 py-4 flex items-center justify-between">
-      <span className="text-xl font-bold text-blue-700">MediAsist</span>
+      <span className="text-xl font-[Montserrat] text-[#2f4157] font-semibold">MediAsist</span>
       <span className="text-sm text-gray-500">{seccion}</span>
-      <div className="w-9 h-9 rounded-full bg-blue-600 text-white flex items-center justify-center font-bold">A</div>
+      <img src={logo} alt="Logo" style={{ width: '60px', height: '70px' }} />
     </nav>
   )
 }
@@ -34,11 +36,11 @@ function PanelLateral({ activo, setActivo }) {
     { id:"reportes", label:"Reportes",       icon:"📊" },
   ]
   return (
-    <aside className="w-56 bg-white border-r border-gray-100 flex flex-col gap-1 p-4 shrink-0">
+    <aside className="w-56 bg-[#c7d9e5] border-r border-gray-100 flex flex-col gap-1 p-4 shrink-0 font-[Montserrat] rounded-[15px]">
       {links.map(l => (
         <button key={l.id} onClick={() => setActivo(l.id)}
-          className={`flex items-center gap-3 px-4 py-2.5 rounded-xl text-sm font-medium text-left transition
-            ${activo===l.id ? "bg-blue-600 text-white" : "text-gray-600 hover:bg-blue-50"}`}>
+          className={`flex items-center gap-3 px-4 py-2.5 rounded-xl text-sm font-medium text-left transition font-[Montserrat]
+            ${activo===l.id ? "bg-[#567c8e] text-white" : "text-gray-600 hover:bg-blue-50"}`}>
           <span>{l.icon}</span> {l.label}
         </button>
       ))}
@@ -142,7 +144,7 @@ function SeccionInicio({ citas }) {
       </div>
       <div className="bg-white rounded-2xl p-6 shadow-sm">
         <h2 className="font-bold text-gray-800 mb-4">Citas de hoy — {citasHoy.length} citas</h2>
-        {citasHoy.length === 0
+        {citasHoy.length===0
           ? <p className="text-gray-400 text-sm">No hay citas registradas para hoy</p>
           : (
             <ul className="flex flex-col gap-2">
@@ -170,7 +172,6 @@ function SeccionCitas({ citas }) {
   const confirmar = async (id) => {
     await updateDoc(doc(db, "citas", id), { estado: "confirmada" })
   }
-
   const handleCancelar = async (id, motivo) => {
     await updateDoc(doc(db, "citas", id), { estado: "cancelada", motivo })
     setModalCancel(null)
@@ -296,7 +297,7 @@ function SeccionHorario({ citas }) {
   )
 }
 
-function SeccionCobros({ citas }) {
+function SeccionCobros({ citas, onCobrar }) {
   const [modalCobro, setModalCobro] = useState(null)
   const [historial, setHistorial]   = useState([])
   const pendientesCobro = citas.filter(c => c.estado==="confirmada")
@@ -313,9 +314,9 @@ function SeccionCobros({ citas }) {
     <main className="flex-1 overflow-y-auto p-6">
       <h1 className="text-3xl font-bold mb-6 text-gray-800">Cobros</h1>
       <div className="grid grid-cols-3 gap-4 mb-6">
-        <Statcard label="Total cobrado hoy"       value={`$${totalCobrado}`}                          color="green" />
-        <Statcard label="Pendientes de cobro"     value={pendientesCobro.length}                      color="amber" />
-        <Statcard label="Citas cobradas"          value={citas.filter(c=>c.estado==="cobrada").length} color="blue"  />
+        <Statcard label="Total cobrado hoy"   value={`$${totalCobrado}`}                          color="green" />
+        <Statcard label="Pendientes de cobro" value={pendientesCobro.length}                      color="amber" />
+        <Statcard label="Citas cobradas"      value={citas.filter(c=>c.estado==="cobrada").length} color="blue"  />
       </div>
       <div className="grid grid-cols-2 gap-4">
         <div className="bg-white rounded-2xl p-6 shadow-sm">
@@ -362,82 +363,10 @@ function SeccionCobros({ citas }) {
   )
 }
 
-function SeccionReportes({ citas }) {
-  const total       = citas.length || 1
-  const confirmadas = citas.filter(c=>c.estado==="confirmada").length
-  const cobradas    = citas.filter(c=>c.estado==="cobrada").length
-  const canceladas  = citas.filter(c=>c.estado==="cancelada").length
-  const pendientes  = citas.filter(c=>c.estado==="pendiente").length
-  const totalMonto  = citas.filter(c=>c.estado==="cobrada").reduce((s,c)=>s+c.monto, 0)
-
-  const porMedico = Object.keys(HORARIOS_MEDICO).map(m => ({
-    medico:      m,
-    total:       citas.filter(c=>c.medico===m).length,
-    confirmadas: citas.filter(c=>c.medico===m && c.estado==="confirmada").length,
-    cobradas:    citas.filter(c=>c.medico===m && c.estado==="cobrada").length,
-  }))
-
-  return (
-    <main className="flex-1 overflow-y-auto p-6">
-      <h1 className="text-3xl font-bold mb-6 text-gray-800">Reportes</h1>
-      <div className="grid grid-cols-3 gap-4 mb-6">
-        <Statcard label="Total de citas"      value={citas.length}     color="blue"  />
-        <Statcard label="Monto recaudado"     value={`$${totalMonto}`} color="green" />
-        <Statcard label="Tasa de cancelación" value={`${Math.round(canceladas/total*100)}%`} color="red" />
-      </div>
-      <div className="grid grid-cols-2 gap-4">
-        <div className="bg-white rounded-2xl p-6 shadow-sm">
-          <h2 className="font-bold text-gray-800 mb-4">📊 Distribución de estados</h2>
-          <ul className="flex flex-col gap-3">
-            {[
-              { label:"Pendientes",  value:pendientes,  color:"bg-amber-400" },
-              { label:"Confirmadas", value:confirmadas, color:"bg-blue-500"  },
-              { label:"Cobradas",    value:cobradas,    color:"bg-green-500" },
-              { label:"Canceladas",  value:canceladas,  color:"bg-red-400"   },
-            ].map(r => (
-              <li key={r.label}>
-                <div className="flex justify-between text-sm mb-1">
-                  <span className="text-gray-600">{r.label}</span>
-                  <span className="font-medium text-gray-800">{r.value} ({Math.round(r.value/total*100)}%)</span>
-                </div>
-                <div className="h-2 bg-gray-100 rounded-full overflow-hidden">
-                  <div className={`h-full ${r.color} rounded-full transition-all`} style={{ width:`${Math.round(r.value/total*100)}%` }} />
-                </div>
-              </li>
-            ))}
-          </ul>
-        </div>
-        <div className="bg-white rounded-2xl p-6 shadow-sm">
-          <h2 className="font-bold text-gray-800 mb-4">🩺 Resumen por médico</h2>
-          <table className="w-full text-sm">
-            <thead>
-              <tr className="text-xs text-gray-400 text-left">
-                <th className="pb-2 font-semibold">Médico</th>
-                <th className="pb-2 font-semibold">Total</th>
-                <th className="pb-2 font-semibold">Confirm.</th>
-                <th className="pb-2 font-semibold">Cobradas</th>
-              </tr>
-            </thead>
-            <tbody>
-              {porMedico.map(r => (
-                <tr key={r.medico} className="border-t border-gray-50">
-                  <td className="py-2 font-medium text-gray-800">{r.medico}</td>
-                  <td className="py-2 text-gray-500">{r.total}</td>
-                  <td className="py-2 text-blue-600 font-medium">{r.confirmadas}</td>
-                  <td className="py-2 text-green-600 font-medium">{r.cobradas}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      </div>
-    </main>
-  )
-}
-
+// ─── App principal ────────────────────────────────────────────────────────────
 export default function DashboardAsistente() {
-  const [seccion, setSeccion] = useState("inicio")
-  const [citas, setCitas]     = useState([])
+  const [seccion, setSeccion]   = useState("inicio")
+  const [citas, setCitas]       = useState([])
   const [cargando, setCargando] = useState(true)
 
   useEffect(() => {
@@ -448,6 +377,13 @@ export default function DashboardAsistente() {
     })
     return () => unsub()
   }, [])
+
+  // Cobro centralizado — lo usan SeccionCobros y SeccionReportes
+  const handleCobrar = async (id, metodo, pmId = null) => {
+    const payload = { estado: "cobrada", metodoPago: metodo }
+    if (pmId) payload.stripePaymentMethodId = pmId
+    await updateDoc(doc(db, "citas", id), payload)
+  }
 
   const titulos = {
     inicio:   "Inicio",
@@ -471,8 +407,8 @@ export default function DashboardAsistente() {
         {seccion==="inicio"   && <SeccionInicio   citas={citas} />}
         {seccion==="citas"    && <SeccionCitas    citas={citas} />}
         {seccion==="horario"  && <SeccionHorario  citas={citas} />}
-        {seccion==="cobros"   && <SeccionCobros   citas={citas} />}
-        {seccion==="reportes" && <SeccionReportes citas={citas} />}
+        {seccion==="cobros"   && <SeccionCobros   citas={citas} onCobrar={handleCobrar} />}
+        {seccion==="reportes" && <SeccionReportes citas={citas} onCobrar={handleCobrar} />}
       </div>
     </div>
   )
