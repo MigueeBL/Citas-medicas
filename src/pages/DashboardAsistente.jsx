@@ -1,14 +1,8 @@
 import { useState, useEffect } from "react"
 import { db } from "../firebase/config"
-import { collection, onSnapshot, doc, updateDoc } from "firebase/firestore"
+import { collection, onSnapshot, doc, updateDoc, query, where, getDocs } from "firebase/firestore"
 import SeccionReportes from "./SeccionReportes"  // ← importa el nuevo componente
 import logo from "../assets/logo.png"
-
-const HORARIOS_MEDICO = {
-  "Dr. Ramírez":  ["09:00","11:00","16:00"],
-  "Dra. Soto":    ["10:30","13:30","17:00"],
-  "Dr. Mendoza":  ["12:00","15:00"],
-}
 
 const COLOR = {
   pendiente:  { bg:"bg-amber-100",  text:"text-amber-800"  },
@@ -32,6 +26,7 @@ function PanelLateral({ activo, setActivo }) {
     { id:"inicio",   label:"Inicio",        icon:"🏠" },
     { id:"citas",    label:"Citas",          icon:"📅" },
     { id:"horario",  label:"Horario Médico", icon:"🩺" },
+    { id:"horarios", label:"Gestionar Horarios", icon: "⚙️"},
     { id:"cobros",   label:"Cobros",         icon:"💳" },
     { id:"reportes", label:"Reportes",       icon:"📊" },
   ]
@@ -237,23 +232,50 @@ function SeccionCitas({ citas }) {
 }
 
 function SeccionHorario({ citas }) {
-  const [medicoSel, setMedicoSel] = useState("Dr. Ramírez")
+  const [medicos, setMedicos] = useState([])
+  const [medicoSel, setMedicoSel] = useState(null)
+  const [cargando, setCargando] = useState(true)
   const hoy = new Date().toISOString().split("T")[0]
-  const medicos = Object.keys(HORARIOS_MEDICO)
+
+  useEffect(() => {
+    const fetchMedicos = async () => {
+      const snap = await getDocs(
+        query(collection(db, "usuarios"), where("rol", "==", "medico"), where("estado", "==", "aprobado"))
+      )
+      const lista = snap.docs.map(d => ({ id: d.id, ...d.data() }))
+      setMedicos(lista)
+      if (lista.length > 0) setMedicoSel(lista[0])
+      setCargando(false)
+    }
+    fetchMedicos()
+  }, [])
+
+  if (cargando) return <main className="flex-1 p-6"><p className="text-gray-400">Cargando...</p></main>
+  if (medicos.length === 0) return (
+    <main className="flex-1 p-6">
+      <h1 className="text-3xl font-bold mb-6 text-gray-800">Horario del Médico</h1>
+      <div className="bg-white rounded-2xl p-10 text-center shadow-sm">
+        <p className="text-4xl mb-3">🩺</p>
+        <p className="text-gray-400">No hay médicos aprobados con horarios asignados</p>
+      </div>
+    </main>
+  )
+
+  const slots = medicoSel?.horarios || []
   const citasDelMedico = citas
-    .filter(c => c.medico===medicoSel && c.fecha===hoy)
+    .filter(c => c.medicoId === medicoSel?.id && c.fecha === hoy)
     .sort((a,b) => a.hora.localeCompare(b.hora))
-  const slots = HORARIOS_MEDICO[medicoSel] || []
 
   return (
     <main className="flex-1 overflow-y-auto p-6">
       <h1 className="text-3xl font-bold mb-6 text-gray-800">Horario del Médico</h1>
-      <div className="flex gap-3 mb-6">
+      <div className="flex gap-3 mb-6 flex-wrap">
         {medicos.map(m => (
-          <button key={m} onClick={() => setMedicoSel(m)}
-            className={`px-4 py-2 rounded-xl text-sm font-medium transition
-              ${medicoSel===m ? "bg-blue-600 text-white" : "bg-white text-gray-600 border border-gray-200 hover:bg-blue-50"}`}>
-            {m}
+          <button key={m.id} onClick={() => setMedicoSel(m)}
+            className={`px-4 py-2 rounded-xl text-sm font-medium transition ${
+              medicoSel?.id===m.id ? "bg-blue-600 text-white" : "bg-white text-gray-600 border border-gray-200 hover:bg-blue-50"
+            }`}>
+            {m.nombre}
           </button>
         ))}
       </div>
@@ -276,21 +298,26 @@ function SeccionHorario({ citas }) {
         </div>
         <div className="bg-white rounded-2xl p-6 shadow-sm">
           <h2 className="font-bold text-gray-800 mb-4">🕐 Disponibilidad</h2>
-          <ul className="flex flex-col gap-2">
-            {slots.map(hora => {
-              const ocupada = citasDelMedico.find(c=>c.hora===hora && c.estado!=="cancelada")
-              return (
-                <li key={hora} className={`flex items-center justify-between px-4 py-2.5 rounded-xl text-sm
-                  ${ocupada ? "bg-blue-50 border border-blue-200" : "bg-green-50 border border-green-200"}`}>
-                  <span className="font-medium">{hora}</span>
-                  {ocupada
-                    ? <span className="text-blue-700 text-xs font-medium">Ocupado — {ocupada.paciente}</span>
-                    : <span className="text-green-700 text-xs font-medium">Disponible</span>
-                  }
-                </li>
-              )
-            })}
-          </ul>
+          {slots.length === 0 ? (
+            <p className="text-gray-400 text-sm">Este médico no tiene horarios asignados aún</p>
+          ) : (
+            <ul className="flex flex-col gap-2">
+              {slots.map(hora => {
+                const ocupada = citasDelMedico.find(c=>c.hora===hora && c.estado!=="cancelada")
+                return (
+                  <li key={hora} className={`flex items-center justify-between px-4 py-2.5 rounded-xl text-sm ${
+                    ocupada ? "bg-blue-50 border border-blue-200" : "bg-green-50 border border-green-200"
+                  }`}>
+                    <span className="font-medium">{hora}</span>
+                    {ocupada
+                      ? <span className="text-blue-700 text-xs font-medium">Ocupado — {ocupada.paciente}</span>
+                      : <span className="text-green-700 text-xs font-medium">Disponible</span>
+                    }
+                  </li>
+                )
+              })}
+            </ul>
+          )}
         </div>
       </div>
     </main>
@@ -363,6 +390,197 @@ function SeccionCobros({ citas, onCobrar }) {
   )
 }
 
+function SeccionGestionarHorarios() {
+  const [medicos, setMedicos] = useState([])
+  const [cargando, setCargando] = useState(true)
+  const [medicoSel, setMedicoSel] = useState(null)
+  const [horariosTemp, setHorariosTemp] = useState([])
+  const [nuevaHora, setNuevaHora] = useState("")
+  const [guardando, setGuardando] = useState(false)
+  const [exito, setExito] = useState("")
+
+  useEffect(() => {
+    fetchMedicos()
+  }, [])
+
+  const fetchMedicos = async () => {
+    setCargando(true)
+    const snap = await getDocs(
+      query(collection(db, "usuarios"), where("rol", "==", "medico"), where("estado", "==", "aprobado"))
+    )
+    const lista = snap.docs.map(d => ({ id: d.id, ...d.data() }))
+    setMedicos(lista)
+    setCargando(false)
+  }
+
+  const seleccionarMedico = (medico) => {
+    setMedicoSel(medico)
+    setHorariosTemp(medico.horarios || [])
+    setExito("")
+  }
+
+  const agregarHora = () => {
+    if (!nuevaHora) return
+    if (horariosTemp.includes(nuevaHora)) return
+    setHorariosTemp(prev => [...prev, nuevaHora].sort())
+    setNuevaHora("")
+  }
+
+  const quitarHora = (hora) => {
+    setHorariosTemp(prev => prev.filter(h => h !== hora))
+  }
+
+  const guardarHorarios = async () => {
+    if (!medicoSel) return
+    setGuardando(true)
+    await updateDoc(doc(db, "usuarios", medicoSel.id), { horarios: horariosTemp })
+    setMedicos(prev => prev.map(m => m.id === medicoSel.id ? { ...m, horarios: horariosTemp } : m))
+    setMedicoSel(prev => ({ ...prev, horarios: horariosTemp }))
+    setExito("✅ Horarios guardados correctamente")
+    setGuardando(false)
+  }
+
+  const HORAS_SUGERIDAS = [
+    "08:00","08:30","09:00","09:30","10:00","10:30",
+    "11:00","11:30","12:00","12:30","13:00","13:30",
+    "14:00","14:30","15:00","15:30","16:00","16:30",
+    "17:00","17:30","18:00"
+  ]
+
+  return (
+    <main className="flex-1 overflow-y-auto p-6">
+      <h1 className="text-3xl font-bold mb-2 text-gray-800">Gestionar Horarios</h1>
+      <p className="text-gray-400 text-sm mb-6">Asigna los horarios de atención a cada médico aprobado</p>
+
+      {cargando ? (
+        <p className="text-gray-400">Cargando médicos...</p>
+      ) : medicos.length === 0 ? (
+        <div className="bg-white rounded-2xl p-10 text-center shadow-sm">
+          <p className="text-4xl mb-3">🩺</p>
+          <p className="text-gray-400">No hay médicos aprobados aún</p>
+        </div>
+      ) : (
+        <div className="grid grid-cols-3 gap-4">
+          {/* Lista de médicos */}
+          <div className="col-span-1 flex flex-col gap-2">
+            <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-1">Médicos aprobados</p>
+            {medicos.map(m => (
+              <button key={m.id} onClick={() => seleccionarMedico(m)}
+                className={`text-left p-4 rounded-2xl border transition-all ${
+                  medicoSel?.id === m.id
+                    ? "bg-blue-50 border-blue-300"
+                    : "bg-white border-gray-100 hover:border-blue-200"
+                }`}>
+                <div className="flex items-center gap-3">
+                  <div className="w-9 h-9 rounded-full bg-blue-100 flex items-center justify-center text-blue-700 font-bold text-sm flex-shrink-0">
+                    {m.nombre?.[0]}
+                  </div>
+                  <div className="min-w-0">
+                    <p className="font-semibold text-sm text-gray-800 truncate">{m.nombre}</p>
+                    <p className="text-xs text-gray-400">{m.especialidad}</p>
+                  </div>
+                </div>
+                <div className="mt-2 flex items-center gap-1">
+                  <span className={`text-xs px-2 py-0.5 rounded-full ${
+                    (m.horarios?.length || 0) > 0
+                      ? "bg-green-100 text-green-700"
+                      : "bg-amber-100 text-amber-700"
+                  }`}>
+                    {(m.horarios?.length || 0) > 0
+                      ? `${m.horarios.length} horarios`
+                      : "Sin horarios"}
+                  </span>
+                </div>
+              </button>
+            ))}
+          </div>
+
+          {/* Editor de horarios */}
+          <div className="col-span-2">
+            {!medicoSel ? (
+              <div className="bg-white rounded-2xl p-10 text-center shadow-sm h-full flex items-center justify-center">
+                <div>
+                  <p className="text-4xl mb-3">👈</p>
+                  <p className="text-gray-400 text-sm">Selecciona un médico para editar sus horarios</p>
+                </div>
+              </div>
+            ) : (
+              <div className="bg-white rounded-2xl p-6 shadow-sm">
+                <div className="flex items-center gap-3 mb-6 pb-4 border-b border-gray-100">
+                  <div className="w-12 h-12 rounded-full bg-blue-100 flex items-center justify-center text-blue-700 font-bold text-lg">
+                    {medicoSel.nombre?.[0]}
+                  </div>
+                  <div>
+                    <h2 className="font-bold text-gray-800">{medicoSel.nombre}</h2>
+                    <p className="text-sm text-gray-400">{medicoSel.especialidad} · {medicoSel.email}</p>
+                  </div>
+                </div>
+
+                {/* Horarios actuales */}
+                <div className="mb-5">
+                  <p className="text-sm font-semibold text-gray-700 mb-3">Horarios asignados</p>
+                  {horariosTemp.length === 0 ? (
+                    <p className="text-sm text-gray-300 italic">Sin horarios asignados</p>
+                  ) : (
+                    <div className="flex flex-wrap gap-2">
+                      {horariosTemp.map(hora => (
+                        <span key={hora} className="flex items-center gap-1.5 bg-blue-50 border border-blue-200 text-blue-700 text-sm px-3 py-1.5 rounded-xl">
+                          🕐 {hora}
+                          <button onClick={() => quitarHora(hora)}
+                            className="text-blue-400 hover:text-red-500 transition-colors font-bold leading-none">
+                            ×
+                          </button>
+                        </span>
+                      ))}
+                    </div>
+                  )}
+                </div>
+
+                {/* Agregar hora manual */}
+                <div className="mb-4">
+                  <p className="text-sm font-semibold text-gray-700 mb-2">Agregar horario</p>
+                  <div className="flex gap-2">
+                    <input type="time" value={nuevaHora} onChange={e => setNuevaHora(e.target.value)}
+                      className="border border-gray-200 rounded-xl px-3 py-2 text-sm outline-none focus:border-blue-400"
+                    />
+                    <button onClick={agregarHora}
+                      className="px-4 py-2 rounded-xl text-white text-sm font-medium bg-blue-500 hover:bg-blue-400 transition">
+                      + Agregar
+                    </button>
+                  </div>
+                </div>
+
+                {/* Horas sugeridas */}
+                <div className="mb-6">
+                  <p className="text-xs text-gray-400 mb-2">Horarios sugeridos (clic para agregar)</p>
+                  <div className="flex flex-wrap gap-1.5">
+                    {HORAS_SUGERIDAS.filter(h => !horariosTemp.includes(h)).map(hora => (
+                      <button key={hora} onClick={() => setHorariosTemp(prev => [...prev, hora].sort())}
+                        className="text-xs px-2.5 py-1 rounded-lg border border-gray-200 text-gray-500 hover:border-blue-400 hover:text-blue-600 hover:bg-blue-50 transition">
+                        {hora}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                {exito && (
+                  <div className="mb-4 text-sm text-green-700 bg-green-50 rounded-xl px-4 py-2">{exito}</div>
+                )}
+
+                <button onClick={guardarHorarios} disabled={guardando}
+                  className="w-full py-3 rounded-xl text-white font-semibold text-sm transition-all disabled:opacity-60"
+                  style={{background: "#2f4157"}}>
+                  {guardando ? "Guardando..." : "💾 Guardar horarios"}
+                </button>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+    </main>
+  )
+}
+
 // ─── App principal ────────────────────────────────────────────────────────────
 export default function DashboardAsistente() {
   const [seccion, setSeccion]   = useState("inicio")
@@ -407,6 +625,7 @@ export default function DashboardAsistente() {
         {seccion==="inicio"   && <SeccionInicio   citas={citas} />}
         {seccion==="citas"    && <SeccionCitas    citas={citas} />}
         {seccion==="horario"  && <SeccionHorario  citas={citas} />}
+        {seccion==="horarios" && <SeccionGestionarHorarios />}
         {seccion==="cobros"   && <SeccionCobros   citas={citas} onCobrar={handleCobrar} />}
         {seccion==="reportes" && <SeccionReportes citas={citas} onCobrar={handleCobrar} />}
       </div>
