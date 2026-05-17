@@ -177,7 +177,7 @@ function BottomNav({ seccion, setSeccion, onLogout }) {
         </button>
       ))}
       <button onClick={onLogout} className="flex-1 flex flex-col items-center py-2 gap-0.5 text-xs font-medium" style={{color: C.light}}>
-        <span className="text-lg leading-none">🚪</span>
+        <IconoSalir   style={{width:20, height:20, color: seccion==="overview"  ? "white" : C.soft}} />
         <span>Salir</span>
       </button>
     </nav>
