@@ -9,6 +9,8 @@ import { doc, getDoc, setDoc } from "firebase/firestore";
 import { useNavigate } from "react-router-dom";
 import logo from "../assets/logo.png";
 import logoHospital from "../assets/logoHospital.png";
+import { storage } from "../firebase/config";
+import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
 
 export default function Login() {
   const [tab, setTab] = useState("login");
@@ -17,6 +19,11 @@ export default function Login() {
   const [nombre, setNombre] = useState("");
   const [error, setError] = useState("");
   const [exito, setExito] = useState("");
+  const [rol, setRol] = useState("paciente");
+  const [especialidad, setEspecialidad] = useState("");
+  const [cedula, setCedula] = useState("");
+  const [archivoCedula, setArchivoCedula] = useState(null);
+  const [subiendo, setSubiendo] = useState(false);
   const navigate = useNavigate();
 
   const redirigirPorRol = (rol) => {
@@ -71,30 +78,67 @@ export default function Login() {
     if (!nombre.trim()) return setError("Escribe tu nombre completo");
     if (password.length < 6)
       return setError("La contraseña debe tener al menos 6 caracteres");
+    if (rol === "medico" && !especialidad.trim())
+      return setError("Escribe tu especialidad");
+    if (rol === "medico" && !cedula.trim())
+      return setError("Escribe tu número de cédula");
+    if (rol === "medico" && !archivoCedula)
+      return setError("Sube el archivo de tu cédula");
+
+    setSubiendo(true);
     try {
       const result = await createUserWithEmailAndPassword(
         auth,
         email,
         password,
       );
-      await setDoc(doc(db, "usuarios", result.user.uid), {
+
+      let urlCedula = "";
+      if (rol === "medico" && archivoCedula) {
+        const storageRef = ref(
+          storage,
+          `cedulas/${result.user.uid}/${archivoCedula.name}`,
+        );
+        await uploadBytes(storageRef, archivoCedula);
+        urlCedula = await getDownloadURL(storageRef);
+      }
+
+      const datosUsuario = {
         nombre,
         email,
         foto: "",
-        rol: "paciente",
-      });
-      setExito("¡Cuenta creada! Ahora inicia sesión.");
+        rol,
+        fechaRegistro: new Date().toISOString(),
+        ...(rol === "medico" && {
+          especialidad,
+          cedula,
+          urlCedula,
+          estado: "pendiente", // el admin aprueba al médico
+          horarios: [],
+        }),
+      };
+
+      await setDoc(doc(db, "usuarios", result.user.uid), datosUsuario);
+
+      if (rol === "medico") {
+        setExito("¡Solicitud enviada! Un administrador revisará tu cuenta.");
+      } else {
+        setExito("¡Cuenta creada! Ahora inicia sesión.");
+      }
       setTab("login");
       setEmail("");
       setPassword("");
       setNombre("");
+      setEspecialidad("");
+      setCedula("");
+      setArchivoCedula(null);
+      setRol("paciente");
     } catch (err) {
-      if (err.code === "auth/email-already-in-use") {
+      if (err.code === "auth/email-already-in-use")
         setError("Este correo ya está registrado");
-      } else {
-        setError("Error al crear la cuenta");
-      }
+      else setError("Error al crear la cuenta");
     }
+    setSubiendo(false);
   };
 
   return (
@@ -209,19 +253,48 @@ export default function Login() {
 
           {/* Formulario registro */}
           {tab === "registro" && (
-            <form onSubmit={registrarse} className="flex flex-col gap-5">
+            <form onSubmit={registrarse} className="flex flex-col gap-4">
+              {/* Selector de rol */}
+              <div className="flex gap-2 mb-1">
+                <button
+                  type="button"
+                  onClick={() => setRol("paciente")}
+                  className="flex-1 py-2 rounded-xl text-sm font-medium transition-all border"
+                  style={{
+                    background: rol === "paciente" ? "#1d4ed8" : "transparent",
+                    color: rol === "paciente" ? "white" : "#6b7280",
+                    borderColor: rol === "paciente" ? "#1d4ed8" : "#e5e7eb",
+                  }}
+                >
+                  👤 Soy paciente
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setRol("medico")}
+                  className="flex-1 py-2 rounded-xl text-sm font-medium transition-all border"
+                  style={{
+                    background: rol === "medico" ? "#1d4ed8" : "transparent",
+                    color: rol === "medico" ? "white" : "#6b7280",
+                    borderColor: rol === "medico" ? "#1d4ed8" : "#e5e7eb",
+                  }}
+                >
+                  🩺 Soy médico
+                </button>
+              </div>
+
               <div className="flex flex-col gap-1">
                 <label className="text-sm font-bold text-blue-500 tracking-wide">
                   NOMBRE COMPLETO
                 </label>
                 <input
                   type="text"
-                  placeholder="Tu nombre"
+                  placeholder="Tu nombre completo"
                   value={nombre}
                   onChange={(e) => setNombre(e.target.value)}
                   className="border-b border-gray-200 bg-transparent py-3 text-sm text-gray-700 outline-none focus:border-blue-500 transition-colors placeholder-gray-300"
                 />
               </div>
+
               <div className="flex flex-col gap-1">
                 <label className="text-sm font-bold text-blue-500 tracking-wide">
                   CORREO ELECTRÓNICO
@@ -234,6 +307,7 @@ export default function Login() {
                   className="border-b border-gray-200 bg-transparent py-3 text-sm text-gray-700 outline-none focus:border-blue-500 transition-colors placeholder-gray-300"
                 />
               </div>
+
               <div className="flex flex-col gap-1">
                 <label className="text-sm font-bold text-blue-500 tracking-wide">
                   CONTRASEÑA
@@ -246,11 +320,91 @@ export default function Login() {
                   className="border-b border-gray-200 bg-transparent py-3 text-sm text-gray-700 outline-none focus:border-blue-500 transition-colors placeholder-gray-300"
                 />
               </div>
+
+              {/* Campos extra para médico */}
+              {rol === "medico" && (
+                <>
+                  <div className="flex flex-col gap-1">
+                    <label className="text-sm font-bold text-blue-500 tracking-wide">
+                      ESPECIALIDAD
+                    </label>
+                    <input
+                      type="text"
+                      placeholder="Ej: Cardiología, Pediatría..."
+                      value={especialidad}
+                      onChange={(e) => setEspecialidad(e.target.value)}
+                      className="border-b border-gray-200 bg-transparent py-3 text-sm text-gray-700 outline-none focus:border-blue-500 transition-colors placeholder-gray-300"
+                    />
+                  </div>
+
+                  <div className="flex flex-col gap-1">
+                    <label className="text-sm font-bold text-blue-500 tracking-wide">
+                      NÚMERO DE CÉDULA
+                    </label>
+                    <input
+                      type="text"
+                      placeholder="Número de cédula profesional"
+                      value={cedula}
+                      onChange={(e) => setCedula(e.target.value)}
+                      className="border-b border-gray-200 bg-transparent py-3 text-sm text-gray-700 outline-none focus:border-blue-500 transition-colors placeholder-gray-300"
+                    />
+                  </div>
+
+                  <div className="flex flex-col gap-1">
+                    <label className="text-sm font-bold text-blue-500 tracking-wide">
+                      CÉDULA PROFESIONAL (archivo)
+                    </label>
+                    <div
+                      className="border border-dashed rounded-xl p-3 text-center cursor-pointer"
+                      style={{ borderColor: "#c7d9e5", background: "#f3f6f9" }}
+                      onClick={() =>
+                        document.getElementById("inputCedula").click()
+                      }
+                    >
+                      {archivoCedula ? (
+                        <p className="text-xs text-blue-600 font-medium">
+                          ✅ {archivoCedula.name}
+                        </p>
+                      ) : (
+                        <>
+                          <p className="text-xs text-gray-400">
+                            📄 Haz clic para subir tu cédula
+                          </p>
+                          <p className="text-xs text-gray-300">
+                            PDF, JPG o PNG
+                          </p>
+                        </>
+                      )}
+                    </div>
+                    <input
+                      id="inputCedula"
+                      type="file"
+                      accept=".pdf,.jpg,.jpeg,.png"
+                      className="hidden"
+                      onChange={(e) => setArchivoCedula(e.target.files[0])}
+                    />
+                  </div>
+
+                  <div
+                    className="rounded-xl p-3 text-xs"
+                    style={{ background: "#fef3c7", color: "#92400e" }}
+                  >
+                    ⚠️ Tu cuenta será revisada por un administrador antes de
+                    poder acceder.
+                  </div>
+                </>
+              )}
+
               <button
                 type="submit"
-                className="w-full bg-blue-500 hover:bg-blue-600 text-white font-bold py-3 rounded-xl tracking-widest text-sm transition-all shadow-lg shadow-blue-200 mt-1"
+                disabled={subiendo}
+                className="w-full bg-blue-500 hover:bg-blue-600 text-white font-bold py-3 rounded-xl tracking-widest text-sm transition-all shadow-lg shadow-blue-200 mt-1 disabled:opacity-60"
               >
-                CREAR CUENTA
+                {subiendo
+                  ? "Creando cuenta..."
+                  : rol === "medico"
+                    ? "ENVIAR SOLICITUD"
+                    : "CREAR CUENTA"}
               </button>
             </form>
           )}
