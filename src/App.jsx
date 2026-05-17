@@ -1,7 +1,7 @@
-import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
+import { BrowserRouter, Routes, Route, Navigate, useNavigate } from "react-router-dom";
 import { useEffect, useState } from "react";
 import { auth, db } from "./firebase/config";
-import { onAuthStateChanged } from "firebase/auth";
+import { onAuthStateChanged, signOut } from "firebase/auth";
 import { doc, getDoc } from "firebase/firestore";
 
 import Login from "./pages/Login";
@@ -26,7 +26,13 @@ function RutaProtegida({ user, rolRequerido, children }) {
 }
 
 function PantallaEspera({ user }) {
-  const { signOut } = require("firebase/auth");
+  const navigate = useNavigate(); // necesitas importar useNavigate también
+
+  const handleLogout = async () => {
+    await signOut(auth);
+    navigate("/");
+  };
+
   return (
     <div className="min-h-screen flex items-center justify-center" style={{background: "#f3f6f9"}}>
       <div className="bg-white rounded-2xl p-10 shadow-sm text-center max-w-md" style={{border: "1px solid #c7d9e5"}}>
@@ -36,8 +42,7 @@ function PantallaEspera({ user }) {
         <p className="text-sm mb-6" style={{color: "#a2c1d1"}}>
           Tu cuenta está siendo revisada por un administrador. Te notificaremos cuando sea aprobada.
         </p>
-        <button
-          onClick={() => { import("firebase/auth").then(({signOut, getAuth}) => signOut(getAuth())); window.location.href = "/"; }}
+        <button onClick={handleLogout}
           className="px-6 py-2.5 rounded-xl text-white text-sm font-medium"
           style={{background: "#567c8e"}}>
           Cerrar sesión
