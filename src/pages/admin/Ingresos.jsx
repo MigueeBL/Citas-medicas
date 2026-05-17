@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
-import { getMedicos } from "../../models/medicos";
-import { getPagosDelMes, agruparIngresosPorMedico, calcularTotalIngresos } from "../../models/pagos";
+import { getMedicos } from "../../models/Medicos";
+import { getPagosDelMes, agruparIngresosPorMedico, calcularTotalIngresos } from "../../models/Pagos";
 import { db } from "../../firebase/config";
 import {
     BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell
