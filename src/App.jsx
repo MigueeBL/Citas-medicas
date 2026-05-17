@@ -75,9 +75,11 @@ export default function App() {
         <Route path="/admin" element={<AdminLayout />}>
           <Route index element={<DashboardAdmin />} />
           <Route path="medicos" element={<Medicos />} />
+          <Route path="validar" element={<Medicos />} />
           <Route path="pacientes" element={<Pacientes />} />
           <Route path="ingresos" element={<Ingresos />} />
           <Route path="citas" element={<CitasMensuales />} />
+          <Route path="estadisticas" element={<DashboardAdmin />} />
         </Route>
       </Routes>
     </BrowserRouter>

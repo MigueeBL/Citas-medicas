@@ -82,7 +82,9 @@ export default function Pacientes() {
                                     <td style={{ ...styles.td, color: "#555" }}>{p.email ?? "—"}</td>
                                     <td style={{ ...styles.td, color: "#888", fontSize: 12 }}>
                                         {p.fechaRegistro
-                                            ? p.fechaRegistro.toDate().toLocaleDateString("es-MX")
+                                            ? p.fechaRegistro?.toDate
+                                                ? p.fechaRegistro.toDate().toLocaleDateString("es-MX")
+                                                : new Date(p.fechaRegistro).toLocaleDateString("es-MX")
                                             : "—"}
                                     </td>
                                     <td style={styles.td}>
