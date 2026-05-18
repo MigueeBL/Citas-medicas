@@ -182,7 +182,7 @@ function estadoStyle(estado) {
         confirmada: { background: "#EAF3DE", color: "#27500A" },
         pendiente: { background: "#FAEEDA", color: "#633806" },
         cancelada: { background: "#FCEBEB", color: "#A32D2D" },
-        completada: { background: "#E1F5EE", color: "#0F6E56" },
+        completada: { background: "#E1F5EE", color: "#0d6d55" },
     };
     return map[estado] ?? { background: "#f3f4f6", color: "#888" };
 }
