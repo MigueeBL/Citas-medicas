@@ -13,7 +13,6 @@ React + Vite
 Tailwind CSS 
 Firebase
 GitHub Actions (CI/CD).
-Stripe
 jsPDF / docx
 
 ## ⚙️ Funcionalidades Principales
@@ -38,6 +37,7 @@ Gestión de horarios médicos.
 Visualización de citas confirmadas y pendientes.
 Cobro de consultas.
 Reutilización de espacios disponibles.
+Generación de reportes
 
 ### 🛠️ Administrador
 Gestión general del sistema.
