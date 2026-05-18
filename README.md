@@ -1,19 +1,49 @@
-# React + Vite
+Plataforma de Citas Médicas 🏥
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+Sistema web desarrollado para la gestión y administración de citas médicas en línea, enfocado en facilitar la comunicación entre pacientes, médicos, asistentes y administradores mediante una plataforma moderna, segura y escalable.
 
-Currently, two official plugins are available:
+📋 Descripción del Proyecto
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
+La plataforma permite a los pacientes agendar citas médicas de manera sencilla, consultar horarios disponibles y recibir seguimiento de sus consultas. Además, los médicos pueden visualizar sus citas e historiales, los asistentes administrar horarios y confirmaciones, y los administradores generar reportes y estadísticas del sistema.
+El proyecto fue desarrollado siguiendo una arquitectura moderna basada en servicios en la nube y un enfoque responsive para garantizar accesibilidad desde dispositivos móviles y computadoras.
 
-## React Compiler
+🚀 Tecnologías y Herramientas Utilizadas
+Frontend
+React + Vite 
+Tailwind CSS 
+Firebase
+GitHub Actions (CI/CD).
+Stripe
+jsPDF / docx
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+⚙️ Funcionalidades Principales
 
-## Expanding the ESLint configuration
+👤 Paciente
+Registro e inicio de sesión.
+Agendar citas médicas.
+Consultar horarios disponibles.
+Confirmar asistencia.
+Visualizar próximas citas.
+Pago de consultas.
 
-If you are developing a production application, we recommend using TypeScript with type-aware lint rules enabled. Check out the [TS template](https://github.com/vitejs/vite/tree/main/packages/create-vite/template-react-ts) for information on how to integrate TypeScript and [`typescript-eslint`](https://typescript-eslint.io) in your project.
+👨‍⚕️ Médico
+Visualización de citas por día, semana o mes.
+Acceso al historial de pacientes.
+Gestión de citas próximas.
+Confirmación de consultas.
+
+🧑‍💼 Asistente
+Organización y confirmación de citas.
+Gestión de horarios médicos.
+Visualización de citas confirmadas y pendientes.
+Cobro de consultas.
+Reutilización de espacios disponibles.
+
+🛠️ Administrador
+Gestión general del sistema.
+Generación de reportes.
+Estadísticas médicas.
+Monitoreo de ingresos y citas.
 
 Login
 
@@ -86,27 +116,3 @@ Dashboard Paciente
 <img width="1600" height="841" alt="image" src="https://github.com/user-attachments/assets/824030a9-89b5-4770-9f4a-7e2d1bf62678" />
 
 <img width="1600" height="832" alt="image" src="https://github.com/user-attachments/assets/fbeddcf9-6144-45f2-927e-a984e2336fff" />
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
