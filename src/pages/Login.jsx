@@ -36,25 +36,17 @@ export default function Login() {
     navigate(rutas[rol] || "/");
   };
 
+  // loginConGoogle ya NO crea el doc ni navega manualmente.
+  // App.jsx se encarga de ambas cosas via onAuthStateChanged.
   const loginConGoogle = async () => {
     try {
-      const result = await signInWithPopup(auth, googleProvider);
-      const user = result.user;
-      const ref = doc(db, "usuarios", user.uid);
-      const snap = await getDoc(ref);
-      if (!snap.exists()) {
-        await setDoc(ref, {
-          nombre: user.displayName,
-          email: user.email,
-          foto: user.photoURL,
-          rol: "paciente",
-        });
-        navigate("/paciente");
-      } else {
-        redirigirPorRol(snap.data().rol);
-      }
+      await signInWithPopup(auth, googleProvider);
+      // App.jsx detecta el cambio de auth, crea el doc si no existe,
+      // y redirige automáticamente según el rol.
     } catch (err) {
-      setError("Error al iniciar sesión con Google");
+      if (err.code !== "auth/popup-closed-by-user") {
+        setError("Error al iniciar sesión con Google");
+      }
     }
   };
 
@@ -113,7 +105,7 @@ export default function Login() {
           especialidad,
           cedula,
           urlCedula,
-          estado: "pendiente", // el admin aprueba al médico
+          estado: "pendiente",
           horarios: [],
         }),
       };
