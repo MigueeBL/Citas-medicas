@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
-import { db } from "../firebase/config";
+import { db, auth } from "../firebase/config";
+import { signOut } from "firebase/auth";
 import {
   collection,
   onSnapshot,
@@ -19,14 +20,49 @@ const COLOR = {
   cancelada: { bg: "bg-red-100", text: "text-red-800" },
 };
 
-function Navbar({ seccion }) {
+const METODOS = [
+  { id: "efectivo", label: "💵 Efectivo" },
+  { id: "tarjeta", label: "💳 Tarjeta" },
+  { id: "transferencia", label: "🏦 Transferencia" },
+];
+
+function Reloj() {
+  const [hora, setHora] = useState(new Date());
+  useEffect(() => {
+    const timer = setInterval(() => setHora(new Date()), 1000);
+    return () => clearInterval(timer);
+  }, []);
+  const hh = hora.getHours().toString().padStart(2, "0");
+  const mm = hora.getMinutes().toString().padStart(2, "0");
+  const ss = hora.getSeconds().toString().padStart(2, "0");
+  const fecha = hora.toLocaleDateString("es-MX", { weekday: "short", day: "numeric", month: "short" });
+  return (
+    <div className="flex flex-col items-end leading-tight">
+      <span className="text-lg font-bold text-[#2f4157] font-mono tracking-widest">
+        {hh}:{mm}<span className="text-[#567c8e] text-base">:{ss}</span>
+      </span>
+      <span className="text-xs text-gray-400 capitalize">{fecha}</span>
+    </div>
+  );
+}
+
+function Navbar({ seccion, onCerrarSesion }) {
   return (
     <nav className="bg-white shadow-sm px-8 py-4 flex items-center justify-between">
       <span className="text-xl font-[Montserrat] text-[#2f4157] font-semibold">
         MediAsist
       </span>
       <span className="text-sm text-gray-500">{seccion}</span>
-      <img src={logo} alt="Logo" style={{ width: "60px", height: "70px" }} />
+      <div className="flex items-center gap-5">
+        <Reloj />
+        <img src={logo} alt="Logo" style={{ width: "60px", height: "70px" }} />
+        <button
+          onClick={onCerrarSesion}
+          className="flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-medium text-red-500 border border-red-200 hover:bg-red-50 transition"
+        >
+          🚪 Cerrar sesión
+        </button>
+      </div>
     </nav>
   );
 }
@@ -38,6 +74,7 @@ function PanelLateral({ activo, setActivo }) {
     { id: "horario", label: "Horario Médico", icon: "🩺" },
     { id: "horarios", label: "Gestionar Horarios", icon: "⚙️" },
     { id: "cobros", label: "Cobros", icon: "💳" },
+    { id: "precios", label: "Precios de Consulta", icon: "🏷️" },
     { id: "reportes", label: "Reportes", icon: "📊" },
   ];
   return (
@@ -131,50 +168,97 @@ function ModalCancelar({ cita, onCerrar, onConfirmar }) {
 }
 
 function ModalCobrar({ cita, onCerrar, onConfirmar }) {
-  const [metodo, setMetodo] = useState("efectivo");
+  const total = cita.monto || 0;
+  const [partidas, setPartidas] = useState([{ metodo: "efectivo", monto: total }]);
+  const [error, setError] = useState("");
+
+  const sumaPartidas = partidas.reduce((s, p) => s + (parseFloat(p.monto) || 0), 0);
+  const restante = parseFloat((total - sumaPartidas).toFixed(2));
+
+  const agregarPartida = () =>
+    setPartidas((prev) => [...prev, { metodo: "efectivo", monto: 0 }]);
+
+  const quitarPartida = (i) =>
+    setPartidas((prev) => prev.filter((_, idx) => idx !== i));
+
+  const cambiarPartida = (i, campo, valor) =>
+    setPartidas((prev) =>
+      prev.map((p, idx) => (idx === i ? { ...p, [campo]: valor } : p))
+    );
+
+  const handleConfirmar = () => {
+    if (Math.abs(restante) > 0.01) {
+      setError(`Faltan $${restante.toFixed(2)} MXN por asignar.`);
+      return;
+    }
+    onConfirmar(cita.id, partidas.filter((p) => parseFloat(p.monto) > 0));
+  };
+
   return (
     <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50">
-      <div className="bg-white rounded-2xl p-6 w-80 shadow-xl">
-        <h3 className="font-bold text-lg mb-1 text-gray-800">
-          Registrar cobro
-        </h3>
+      <div className="bg-white rounded-2xl p-6 w-[420px] shadow-xl">
+        <h3 className="font-bold text-lg mb-1 text-gray-800">Registrar cobro</h3>
         <p className="text-sm text-gray-500 mb-1">
           Paciente: <strong>{cita.paciente}</strong>
         </p>
-        <p className="text-3xl font-bold text-green-700 mb-4">
-          ${cita.monto} MXN
-        </p>
+        <p className="text-3xl font-bold text-green-700 mb-4">${total} MXN</p>
+
         <label className="block text-sm font-medium text-gray-700 mb-2">
-          Método de pago
+          Método(s) de pago
         </label>
-        <div className="flex flex-col gap-2 mb-4">
-          {["efectivo", "tarjeta", "transferencia"].map((m) => (
-            <label
-              key={m}
-              className={`flex items-center gap-3 px-4 py-2.5 rounded-xl border cursor-pointer transition
-              ${metodo === m ? "border-blue-500 bg-blue-50" : "border-gray-200 hover:bg-gray-50"}`}
-            >
+        <div className="flex flex-col gap-2 mb-3">
+          {partidas.map((p, i) => (
+            <div key={i} className="flex items-center gap-2 bg-gray-50 rounded-xl px-3 py-2">
+              <select
+                value={p.metodo}
+                onChange={(e) => cambiarPartida(i, "metodo", e.target.value)}
+                className="flex-1 text-sm bg-transparent outline-none border-none"
+              >
+                {METODOS.map((m) => (
+                  <option key={m.id} value={m.id}>{m.label}</option>
+                ))}
+              </select>
+              <span className="text-gray-400 text-sm">$</span>
               <input
-                type="radio"
-                className="accent-blue-600"
-                checked={metodo === m}
-                onChange={() => setMetodo(m)}
+                type="number"
+                min="0"
+                max={total}
+                value={p.monto}
+                onChange={(e) => cambiarPartida(i, "monto", e.target.value)}
+                className="w-24 text-sm font-semibold text-gray-800 outline-none bg-transparent text-right"
               />
-              <span className="text-sm capitalize">{m}</span>
-            </label>
+              <span className="text-gray-400 text-xs">MXN</span>
+              {partidas.length > 1 && (
+                <button
+                  onClick={() => quitarPartida(i)}
+                  className="text-red-400 hover:text-red-600 font-bold text-lg leading-none ml-1"
+                >×</button>
+              )}
+            </div>
           ))}
         </div>
+
+        <div className={`flex justify-between text-sm px-1 mb-2 ${Math.abs(restante) > 0.01 ? "text-red-500 font-semibold" : "text-green-600 font-semibold"}`}>
+          <span>{Math.abs(restante) <= 0.01 ? "✅ Total cubierto" : "Pendiente:"}</span>
+          {Math.abs(restante) > 0.01 && <span>${restante.toFixed(2)} MXN</span>}
+        </div>
+
+        <button
+          onClick={agregarPartida}
+          className="w-full mb-4 border border-dashed border-blue-300 text-blue-500 text-sm rounded-xl py-2 hover:bg-blue-50 transition font-medium"
+        >
+          + Agregar otro método de pago
+        </button>
+
+        {error && <p className="text-red-500 text-xs mb-3">{error}</p>}
+
         <div className="flex gap-3">
-          <button
-            onClick={onCerrar}
-            className="flex-1 border border-gray-200 rounded-xl py-2 text-sm font-medium text-gray-600 hover:bg-gray-50 transition"
-          >
+          <button onClick={onCerrar}
+            className="flex-1 border border-gray-200 rounded-xl py-2 text-sm font-medium text-gray-600 hover:bg-gray-50 transition">
             Cancelar
           </button>
-          <button
-            onClick={() => onConfirmar(cita.id, metodo)}
-            className="flex-1 bg-green-600 text-white rounded-xl py-2 text-sm font-bold hover:bg-green-500 transition"
-          >
+          <button onClick={handleConfirmar}
+            className="flex-1 bg-green-600 text-white rounded-xl py-2 text-sm font-bold hover:bg-green-500 transition">
             Cobrar
           </button>
         </div>
@@ -233,92 +317,109 @@ function SeccionInicio({ citas }) {
 }
 
 function ModalConfirmarCobrar({ cita, onCerrar, onConfirmar }) {
-  const [metodo, setMetodo] = useState("efectivo");
+  const total = cita.monto || 0;
+  const [partidas, setPartidas] = useState([{ metodo: "efectivo", monto: total }]);
+  const [error, setError] = useState("");
+
+  const sumaPartidas = partidas.reduce((s, p) => s + (parseFloat(p.monto) || 0), 0);
+  const restante = parseFloat((total - sumaPartidas).toFixed(2));
+
+  const agregarPartida = () =>
+    setPartidas((prev) => [...prev, { metodo: "efectivo", monto: 0 }]);
+
+  const quitarPartida = (i) =>
+    setPartidas((prev) => prev.filter((_, idx) => idx !== i));
+
+  const cambiarPartida = (i, campo, valor) =>
+    setPartidas((prev) =>
+      prev.map((p, idx) => (idx === i ? { ...p, [campo]: valor } : p))
+    );
+
+  const handleConfirmar = () => {
+    if (Math.abs(restante) > 0.01) {
+      setError(`Faltan $${restante.toFixed(2)} MXN por asignar.`);
+      return;
+    }
+    onConfirmar(cita.id, partidas.filter((p) => parseFloat(p.monto) > 0));
+  };
+
   return (
     <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50">
-      <div className="bg-white rounded-2xl p-6 w-96 shadow-xl">
-        <h3 className="font-bold text-lg mb-1 text-gray-800">
-          Confirmar y cobrar cita
-        </h3>
+      <div className="bg-white rounded-2xl p-6 w-[440px] shadow-xl">
+        <h3 className="font-bold text-lg mb-1 text-gray-800">Confirmar y cobrar cita</h3>
 
-        {/* Info de la cita */}
         <div className="bg-gray-50 rounded-xl p-4 mb-4">
           <div className="flex justify-between mb-1">
             <span className="text-xs text-gray-500">Paciente</span>
-            <span className="text-xs font-semibold text-gray-800">
-              {cita.paciente}
-            </span>
+            <span className="text-xs font-semibold text-gray-800">{cita.paciente}</span>
           </div>
           <div className="flex justify-between mb-1">
             <span className="text-xs text-gray-500">Médico</span>
-            <span className="text-xs font-semibold text-gray-800">
-              {cita.medicoNombre || cita.medico}
-            </span>
+            <span className="text-xs font-semibold text-gray-800">{cita.medicoNombre || cita.medico}</span>
           </div>
           <div className="flex justify-between mb-1">
             <span className="text-xs text-gray-500">Fecha</span>
             <span className="text-xs font-semibold text-gray-800">
-              {cita.fecha
-                ? new Date(cita.fecha + "T00:00:00").toLocaleDateString(
-                    "es-MX",
-                    { day: "numeric", month: "long" },
-                  )
-                : "—"}
+              {cita.fecha ? new Date(cita.fecha + "T00:00:00").toLocaleDateString("es-MX", { day: "numeric", month: "long" }) : "—"}
             </span>
           </div>
           <div className="flex justify-between mb-3">
             <span className="text-xs text-gray-500">Hora</span>
-            <span className="text-xs font-semibold text-gray-800">
-              {cita.hora}
-            </span>
+            <span className="text-xs font-semibold text-gray-800">{cita.hora}</span>
           </div>
           <div className="flex justify-between pt-3 border-t border-gray-200">
-            <span className="text-sm font-bold text-gray-700">
-              Total a cobrar
-            </span>
-            <span className="text-lg font-bold text-green-700">
-              ${cita.monto} MXN
-            </span>
+            <span className="text-sm font-bold text-gray-700">Total a cobrar</span>
+            <span className="text-lg font-bold text-green-700">${total} MXN</span>
           </div>
         </div>
 
-        {/* Método de pago */}
-        <label className="block text-sm font-medium text-gray-700 mb-2">
-          Método de pago
-        </label>
-        <div className="flex flex-col gap-2 mb-5">
-          {[
-            { id: "efectivo", label: "💵 Efectivo" },
-            { id: "tarjeta", label: "💳 Tarjeta" },
-            { id: "transferencia", label: "🏦 Transferencia" },
-          ].map((m) => (
-            <label
-              key={m.id}
-              className={`flex items-center gap-3 px-4 py-2.5 rounded-xl border cursor-pointer transition
-                ${metodo === m.id ? "border-blue-500 bg-blue-50" : "border-gray-200 hover:bg-gray-50"}`}
-            >
+        <label className="block text-sm font-medium text-gray-700 mb-2">Método(s) de pago</label>
+        <div className="flex flex-col gap-2 mb-3">
+          {partidas.map((p, i) => (
+            <div key={i} className="flex items-center gap-2 bg-gray-50 rounded-xl px-3 py-2">
+              <select
+                value={p.metodo}
+                onChange={(e) => cambiarPartida(i, "metodo", e.target.value)}
+                className="flex-1 text-sm bg-transparent outline-none border-none"
+              >
+                {METODOS.map((m) => (
+                  <option key={m.id} value={m.id}>{m.label}</option>
+                ))}
+              </select>
+              <span className="text-gray-400 text-sm">$</span>
               <input
-                type="radio"
-                className="accent-blue-600"
-                checked={metodo === m.id}
-                onChange={() => setMetodo(m.id)}
+                type="number" min="0" max={total} value={p.monto}
+                onChange={(e) => cambiarPartida(i, "monto", e.target.value)}
+                className="w-24 text-sm font-semibold text-gray-800 outline-none bg-transparent text-right"
               />
-              <span className="text-sm">{m.label}</span>
-            </label>
+              <span className="text-gray-400 text-xs">MXN</span>
+              {partidas.length > 1 && (
+                <button onClick={() => quitarPartida(i)}
+                  className="text-red-400 hover:text-red-600 font-bold text-lg leading-none ml-1">×</button>
+              )}
+            </div>
           ))}
         </div>
 
+        <div className={`flex justify-between text-sm px-1 mb-2 ${Math.abs(restante) > 0.01 ? "text-red-500 font-semibold" : "text-green-600 font-semibold"}`}>
+          <span>{Math.abs(restante) <= 0.01 ? "✅ Total cubierto" : "Pendiente:"}</span>
+          {Math.abs(restante) > 0.01 && <span>${restante.toFixed(2)} MXN</span>}
+        </div>
+
+        <button onClick={agregarPartida}
+          className="w-full mb-4 border border-dashed border-blue-300 text-blue-500 text-sm rounded-xl py-2 hover:bg-blue-50 transition font-medium">
+          + Agregar otro método de pago
+        </button>
+
+        {error && <p className="text-red-500 text-xs mb-3">{error}</p>}
+
         <div className="flex gap-3">
-          <button
-            onClick={onCerrar}
-            className="flex-1 border border-gray-200 rounded-xl py-2 text-sm font-medium text-gray-600 hover:bg-gray-50 transition"
-          >
+          <button onClick={onCerrar}
+            className="flex-1 border border-gray-200 rounded-xl py-2 text-sm font-medium text-gray-600 hover:bg-gray-50 transition">
             Cancelar
           </button>
-          <button
-            onClick={() => onConfirmar(cita.id, metodo)}
-            className="flex-1 bg-blue-600 text-white rounded-xl py-2 text-sm font-bold hover:bg-blue-500 transition"
-          >
+          <button onClick={handleConfirmar}
+            className="flex-1 bg-blue-600 text-white rounded-xl py-2 text-sm font-bold hover:bg-blue-500 transition">
             ✓ Confirmar y cobrar
           </button>
         </div>
@@ -333,10 +434,14 @@ function SeccionCitas({ citas }) {
 
   const [modalConfirmarCobrar, setModalConfirmarCobrar] = useState(null);
 
-  const confirmarYCobrar = async (id, metodo) => {
+  const confirmarYCobrar = async (id, partidas) => {
+    const metodoPago = partidas.length === 1
+      ? partidas[0].metodo
+      : partidas.map((p) => `${p.metodo}:$${p.monto}`).join(", ");
     await updateDoc(doc(db, "citas", id), {
       estado: "cobrada",
-      metodoPago: metodo,
+      metodoPago,
+      pagosMixtos: partidas,
       fechaCobro: new Date().toISOString(),
     });
     setModalConfirmarCobrar(null);
@@ -588,15 +693,19 @@ function SeccionCobros({ citas, onCobrar }) {
     .filter((c) => c.estado === "cobrada")
     .reduce((s, c) => s + c.monto, 0);
 
-  const handleCobrar = async (id, metodo) => {
+  const handleCobrar = async (id, partidas) => {
     const cita = citas.find((c) => c.id === id);
+    const metodoPago = partidas.length === 1
+      ? partidas[0].metodo
+      : partidas.map((p) => `${p.metodo}:$${p.monto}`).join(", ");
     await updateDoc(doc(db, "citas", id), {
       estado: "cobrada",
-      metodoPago: metodo,
+      metodoPago,
+      pagosMixtos: partidas,
     });
     setHistorial((prev) => [
       ...prev,
-      { ...cita, metodo, fechaCobro: new Date().toLocaleTimeString("es-MX") },
+      { ...cita, partidas, fechaCobro: new Date().toLocaleTimeString("es-MX") },
     ]);
     setModalCobro(null);
   };
@@ -672,15 +781,22 @@ function SeccionCobros({ citas, onCobrar }) {
               {historial.map((c, i) => (
                 <li
                   key={i}
-                  className="flex items-center justify-between bg-green-50 rounded-xl px-4 py-2.5"
+                  className="flex items-start justify-between bg-green-50 rounded-xl px-4 py-2.5"
                 >
                   <div>
-                    <p className="font-medium text-sm text-gray-800">
-                      {c.paciente}
-                    </p>
-                    <p className="text-xs text-gray-400">
-                      {c.fechaCobro} · {c.metodo}
-                    </p>
+                    <p className="font-medium text-sm text-gray-800">{c.paciente}</p>
+                    <p className="text-xs text-gray-400">{c.fechaCobro}</p>
+                    {c.partidas && c.partidas.length > 1 ? (
+                      <div className="flex flex-wrap gap-1 mt-1">
+                        {c.partidas.map((p, j) => (
+                          <span key={j} className="text-xs bg-white border border-green-200 text-green-700 px-2 py-0.5 rounded-full">
+                            {p.metodo} ${p.monto}
+                          </span>
+                        ))}
+                      </div>
+                    ) : (
+                      <p className="text-xs text-gray-400">{c.partidas?.[0]?.metodo}</p>
+                    )}
                   </div>
                   <span className="font-bold text-green-700">${c.monto}</span>
                 </li>
@@ -695,6 +811,107 @@ function SeccionCobros({ citas, onCobrar }) {
           onCerrar={() => setModalCobro(null)}
           onConfirmar={handleCobrar}
         />
+      )}
+    </main>
+  );
+}
+
+
+// ─── Sección: Actualizar precios de consulta ──────────────────────────────────
+function SeccionPrecios() {
+  const [medicos, setMedicos] = useState([]);
+  const [cargando, setCargando] = useState(true);
+  const [precios, setPrecios] = useState({});
+  const [guardando, setGuardando] = useState({});
+  const [exitos, setExitos] = useState({});
+  const [errores, setErrores] = useState({});
+
+  useEffect(() => {
+    const fetchMedicos = async () => {
+      const snap = await getDocs(
+        query(collection(db, "usuarios"), where("rol", "==", "medico"), where("estado", "==", "aprobado"))
+      );
+      const lista = snap.docs.map((d) => ({ id: d.id, ...d.data() }));
+      setMedicos(lista);
+      const init = {};
+      lista.forEach((m) => { init[m.id] = m.precio ?? ""; });
+      setPrecios(init);
+      setCargando(false);
+    };
+    fetchMedicos();
+  }, []);
+
+  const guardarPrecio = async (medicoId) => {
+    const valor = parseFloat(precios[medicoId]);
+    if (isNaN(valor) || valor < 0) {
+      setErrores((prev) => ({ ...prev, [medicoId]: "Ingresa un precio válido" }));
+      return;
+    }
+    setGuardando((prev) => ({ ...prev, [medicoId]: true }));
+    setErrores((prev) => ({ ...prev, [medicoId]: "" }));
+    try {
+      await updateDoc(doc(db, "usuarios", medicoId), { precio: valor });
+      setMedicos((prev) => prev.map((m) => m.id === medicoId ? { ...m, precio: valor } : m));
+      setExitos((prev) => ({ ...prev, [medicoId]: true }));
+      setTimeout(() => setExitos((prev) => ({ ...prev, [medicoId]: false })), 2500);
+    } catch {
+      setErrores((prev) => ({ ...prev, [medicoId]: "Error al guardar" }));
+    }
+    setGuardando((prev) => ({ ...prev, [medicoId]: false }));
+  };
+
+  if (cargando) return <main className="flex-1 p-6"><p className="text-gray-400">Cargando médicos...</p></main>;
+
+  return (
+    <main className="flex-1 overflow-y-auto p-6">
+      <h1 className="text-3xl font-bold mb-2 text-gray-800">Precios de Consulta</h1>
+      <p className="text-gray-400 text-sm mb-6">
+        Actualiza el precio de consulta de cada médico. El cambio aplica a las nuevas citas.
+      </p>
+      {medicos.length === 0 ? (
+        <div className="bg-white rounded-2xl p-10 text-center shadow-sm">
+          <p className="text-4xl mb-3">🩺</p>
+          <p className="text-gray-400">No hay médicos aprobados aún</p>
+        </div>
+      ) : (
+        <div className="flex flex-col gap-4 max-w-2xl">
+          {medicos.map((m) => (
+            <div key={m.id} className="bg-white rounded-2xl p-5 shadow-sm flex items-center gap-5">
+              <div className="w-12 h-12 rounded-full bg-blue-100 flex items-center justify-center text-blue-700 font-bold text-lg flex-shrink-0">
+                {m.nombre?.[0]}
+              </div>
+              <div className="flex-1 min-w-0">
+                <p className="font-semibold text-gray-800 truncate">{m.nombre}</p>
+                <p className="text-xs text-gray-400">{m.especialidad}</p>
+                {m.precio !== undefined && m.precio !== "" && (
+                  <p className="text-xs text-green-600 font-medium mt-0.5">Precio actual: ${m.precio} MXN</p>
+                )}
+              </div>
+              <div className="flex items-center gap-2 flex-shrink-0">
+                <div className="flex items-center border border-gray-200 rounded-xl px-3 py-2 focus-within:border-blue-400 transition">
+                  <span className="text-gray-400 text-sm mr-1">$</span>
+                  <input
+                    type="number" min="0" placeholder="0"
+                    value={precios[m.id] ?? ""}
+                    onChange={(e) => setPrecios((prev) => ({ ...prev, [m.id]: e.target.value }))}
+                    onKeyDown={(e) => e.key === "Enter" && guardarPrecio(m.id)}
+                    className="w-24 text-sm font-bold text-gray-800 outline-none"
+                  />
+                  <span className="text-gray-400 text-xs ml-1">MXN</span>
+                </div>
+                <button
+                  onClick={() => guardarPrecio(m.id)}
+                  disabled={guardando[m.id]}
+                  className="px-4 py-2 rounded-xl text-white text-sm font-semibold transition disabled:opacity-60"
+                  style={{ background: "#2f4157" }}
+                >
+                  {guardando[m.id] ? "..." : exitos[m.id] ? "✅ Guardado" : "Guardar"}
+                </button>
+              </div>
+              {errores[m.id] && <p className="text-red-500 text-xs">{errores[m.id]}</p>}
+            </div>
+          ))}
+        </div>
       )}
     </main>
   );
@@ -1115,8 +1332,14 @@ export default function DashboardAsistente() {
     inicio: "Inicio",
     citas: "Gestión de Citas",
     horario: "Horario Médico",
+    horarios: "Gestionar Horarios",
     cobros: "Cobros",
+    precios: "Precios de Consulta",
     reportes: "Reportes",
+  };
+
+  const handleCerrarSesion = async () => {
+    await signOut(auth);
   };
 
   if (cargando)
@@ -1128,7 +1351,7 @@ export default function DashboardAsistente() {
 
   return (
     <div className="flex flex-col h-screen bg-slate-100">
-      <Navbar seccion={titulos[seccion]} />
+      <Navbar seccion={titulos[seccion]} onCerrarSesion={handleCerrarSesion} />
       <div className="flex flex-1 overflow-hidden">
         <PanelLateral activo={seccion} setActivo={setSeccion} />
         {seccion === "inicio" && <SeccionInicio citas={citas} />}
@@ -1138,6 +1361,7 @@ export default function DashboardAsistente() {
         {seccion === "cobros" && (
           <SeccionCobros citas={citas} onCobrar={handleCobrar} />
         )}
+        {seccion === "precios" && <SeccionPrecios />}
         {seccion === "reportes" && (
           <SeccionReportes citas={citas} onCobrar={handleCobrar} />
         )}
