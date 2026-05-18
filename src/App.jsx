@@ -8,7 +8,7 @@ import {
 import { useEffect, useState } from "react";
 import { auth, db } from "./firebase/config";
 import { onAuthStateChanged, signOut } from "firebase/auth";
-import { doc, getDoc } from "firebase/firestore";
+import { doc, getDoc, setDoc } from "firebase/firestore";
 
 import Login from "./pages/Login";
 import DashboardMedico from "./pages/DashboardMedico";
@@ -86,13 +86,24 @@ export default function App() {
   useEffect(() => {
     const unsub = onAuthStateChanged(auth, async (firebaseUser) => {
       if (firebaseUser) {
-        const ref = doc(db, "usuarios", firebaseUser.uid);
-        const snap = await getDoc(ref);
+        const userRef = doc(db, "usuarios", firebaseUser.uid);
+        let snap = await getDoc(userRef);
+
+        // Si el doc no existe (usuario nuevo con Google), lo creamos aquí mismo
+        // y así evitamos el race condition con loginConGoogle
+        if (!snap.exists() && firebaseUser.providerData[0]?.providerId === "google.com") {
+          await setDoc(userRef, {
+            nombre: firebaseUser.displayName,
+            email: firebaseUser.email,
+            foto: firebaseUser.photoURL,
+            rol: "paciente",
+          });
+          snap = await getDoc(userRef);
+        }
+
         if (snap.exists()) {
           setUser({ uid: firebaseUser.uid, ...snap.data() });
         } else {
-          // El doc no existe aún (puede pasar justo después del login con Google
-          // antes de que loginConGoogle termine el setDoc). Esperamos un tick.
           setUser(null);
         }
       } else {
