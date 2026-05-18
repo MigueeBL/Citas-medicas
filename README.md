@@ -75,6 +75,23 @@ Dashboard Asistente
 
 <img width="1600" height="1040" alt="image" src="https://github.com/user-attachments/assets/6075338e-c242-405f-befe-0c0ecd16d804" />
 
+Dashboard Paciente 
+
+<img width="1600" height="837" alt="image" src="https://github.com/user-attachments/assets/5aa282d4-fdf4-4a93-9d65-ed4c858a7d58" />
+
+<img width="1600" height="837" alt="image" src="https://github.com/user-attachments/assets/b56596f3-8bce-435d-8dec-8a62273a3419" />
+
+<img width="1600" height="841" alt="image" src="https://github.com/user-attachments/assets/baf2294a-791f-4539-9caa-2677d667c9eb" />
+
+<img width="1600" height="841" alt="image" src="https://github.com/user-attachments/assets/824030a9-89b5-4770-9f4a-7e2d1bf62678" />
+
+<img width="1600" height="832" alt="image" src="https://github.com/user-attachments/assets/fbeddcf9-6144-45f2-927e-a984e2336fff" />
+
+
+
+
+
+
 
 
 
