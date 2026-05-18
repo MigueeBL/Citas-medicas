@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { collection, getDocs, doc, updateDoc, query, where } from "firebase/firestore";
 import { db } from "../../firebase/config";
-import { useWindowWidth } from "./useWindowWidth";
+import { useWindowWidth } from "./usewindowwidth";
  
 const BLUE = "#185FA5";
 const DIAS = ["lunes", "martes", "miercoles", "jueves", "viernes", "sabado", "domingo"];
