@@ -26,7 +26,7 @@ function exportarCSV(datos) {
     csv += `Asistentes,${conteos.asistentes}\n`;
     csv += `\nINGRESOS DEL MES\n`;
     csv += `Total de citas,${ingresosCitas}\n`;
-    csv += `Ingresos estimados,$${ingresosMes}\n`;
+    csv += `Ingresos estimados,"$${ingresosMes.toLocaleString("es-MX")}"\n`;
     csv += `\nESPECIALIDADES (todos los médicos)\n`;
     csv += "Especialidad,Médicos\n";
     especialidadesTodos.forEach((e) => { csv += `${e.name},${e.value}\n`; });

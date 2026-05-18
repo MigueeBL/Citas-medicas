@@ -14,6 +14,7 @@ import Medicos from "./pages/admin/Medicos";
 import Pacientes from "./pages/admin/Pacientes";
 import Ingresos from "./pages/admin/Ingresos";
 import CitasMensuales from "./pages/admin/Citasmensuales";
+import Estadisticas from "./pages/admin/Estadisticas";
 
 function RutaProtegida({ user, rolRequerido, children }) {
   if (!user) return <Navigate to="/" />;
@@ -106,6 +107,7 @@ export default function App() {
           <Route path="pacientes" element={<Pacientes />} />
           <Route path="ingresos" element={<Ingresos />} />
           <Route path="citas" element={<CitasMensuales />} />
+          <Route path="estadisticas" element={<Estadisticas />} />
         </Route>
 
         {/* Catch-all */}
