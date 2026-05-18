@@ -1,13 +1,13 @@
-#Plataforma de Citas Médicas 🏥
+# Plataforma de Citas Médicas 🏥
 
 Sistema web desarrollado para la gestión y administración de citas médicas en línea, enfocado en facilitar la comunicación entre pacientes, médicos, asistentes y administradores mediante una plataforma moderna, segura y escalable.
 
-#📋 Descripción del Proyecto
+## 📋 Descripción del Proyecto
 
 La plataforma permite a los pacientes agendar citas médicas de manera sencilla, consultar horarios disponibles y recibir seguimiento de sus consultas. Además, los médicos pueden visualizar sus citas e historiales, los asistentes administrar horarios y confirmaciones, y los administradores generar reportes y estadísticas del sistema.
 El proyecto fue desarrollado siguiendo una arquitectura moderna basada en servicios en la nube y un enfoque responsive para garantizar accesibilidad desde dispositivos móviles y computadoras.
 
-#🚀 Tecnologías y Herramientas Utilizadas
+## 🚀 Tecnologías y Herramientas Utilizadas
 Frontend
 React + Vite 
 Tailwind CSS 
@@ -16,9 +16,9 @@ GitHub Actions (CI/CD).
 Stripe
 jsPDF / docx
 
-#⚙️ Funcionalidades Principales
+## ⚙️ Funcionalidades Principales
 
-##👤 Paciente
+### 👤 Paciente
 Registro e inicio de sesión.
 Agendar citas médicas.
 Consultar horarios disponibles.
@@ -26,26 +26,26 @@ Confirmar asistencia.
 Visualizar próximas citas.
 Pago de consultas.
 
-##👨‍⚕️ Médico
+### 👨‍⚕️ Médico
 Visualización de citas por día, semana o mes.
 Acceso al historial de pacientes.
 Gestión de citas próximas.
 Confirmación de consultas.
 
-##🧑‍💼 Asistente
+### 🧑‍💼 Asistente
 Organización y confirmación de citas.
 Gestión de horarios médicos.
 Visualización de citas confirmadas y pendientes.
 Cobro de consultas.
 Reutilización de espacios disponibles.
 
-##🛠️ Administrador
+### 🛠️ Administrador
 Gestión general del sistema.
 Generación de reportes.
 Estadísticas médicas.
 Monitoreo de ingresos y citas.
 
-##Login
+## Login
 
 <img width="1458" height="751" alt="Captura de pantalla 2026-05-18 a las 8 44 36 a  m" src="https://github.com/user-attachments/assets/8fc0c1ce-039c-4c0b-bc93-d1daceaba738" />
 
@@ -53,7 +53,7 @@ Monitoreo de ingresos y citas.
 
 <img width="933" height="740" alt="Captura de pantalla 2026-05-18 a las 8 45 30 a  m" src="https://github.com/user-attachments/assets/0a1e2488-9ad9-4b8a-8879-621f7c8a0fad" />
 
-Dashboard Administrador
+## Dashboard Administrador
 
 <img width="1461" height="750" alt="Captura de pantalla 2026-05-18 a las 8 47 06 a  m" src="https://github.com/user-attachments/assets/08cff786-c10d-4620-9ee8-bf5c69f1b7be" />
 
@@ -69,7 +69,7 @@ Dashboard Administrador
 
 <img width="1460" height="821" alt="Captura de pantalla 2026-05-18 a las 8 48 51 a  m" src="https://github.com/user-attachments/assets/79cad7a8-6ac8-4337-a533-a24325d05aee" />
 
-Dashboard Médico
+## Dashboard Médico
 
 <img width="1460" height="822" alt="Captura de pantalla 2026-05-18 a las 8 53 37 a  m" src="https://github.com/user-attachments/assets/791ae987-1bba-4799-b00f-5d941e5c2689" />
 
@@ -85,7 +85,7 @@ Dashboard Médico
 
 <img width="1458" height="821" alt="Captura de pantalla 2026-05-18 a las 8 55 09 a  m" src="https://github.com/user-attachments/assets/e942dfbd-9a00-44de-9d8d-691ecc2e7d5e" />
 
-Dashboard Asistente 
+## Dashboard Asistente 
 
 <img width="1600" height="1040" alt="image" src="https://github.com/user-attachments/assets/fd19da50-2e3c-47a1-aa87-dcab871d23e6" />
 
@@ -105,7 +105,7 @@ Dashboard Asistente
 
 <img width="1600" height="1040" alt="image" src="https://github.com/user-attachments/assets/6075338e-c242-405f-befe-0c0ecd16d804" />
 
-Dashboard Paciente 
+## Dashboard Paciente 
 
 <img width="1600" height="837" alt="image" src="https://github.com/user-attachments/assets/5aa282d4-fdf4-4a93-9d65-ed4c858a7d58" />
 
