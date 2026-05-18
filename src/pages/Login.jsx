@@ -40,21 +40,21 @@ export default function Login() {
     try {
       const result = await signInWithPopup(auth, googleProvider);
       const user = result.user;
-      const ref = doc(db, "usuarios", user.uid);
-      const snap = await getDoc(ref);
+      const userRef = doc(db, "usuarios", user.uid);
+      const snap = await getDoc(userRef);
       if (!snap.exists()) {
-        await setDoc(ref, {
+        await setDoc(userRef, {
           nombre: user.displayName,
           email: user.email,
           foto: user.photoURL,
           rol: "paciente",
         });
-        navigate("/paciente");
-      } else {
-        redirigirPorRol(snap.data().rol);
       }
+      // ❌ Elimina el navigate() de aquí
+      // ✅ App.jsx lo manejará via onAuthStateChanged
     } catch (err) {
       setError("Error al iniciar sesión con Google");
+      console.error(err);
     }
   };
 
