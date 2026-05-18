@@ -701,8 +701,8 @@ function MisCitas({ citas }) {
 
   const pudeCancelar = (cita) => 
     cita.fecha >= hoy &&
-    cita.estado !== "Cancelada" &&
-    cita.estado !== "Cobrada";
+    cita.estado !== "cancelada" &&
+    cita.estado !== "cobrada";
 
   return (
     <>
@@ -710,7 +710,7 @@ function MisCitas({ citas }) {
         cita={citaACancelar}
         onConfirmar={handleCancelar}
         onCerrar={() => setCitaACancelar(null)}
-        cancelando={cancelando}
+        cancelando={cancelado}
       />
 
     <div className="flex-1 p-4 md:p-6 overflow-y-auto pb-20 md:pb-6" style={{background: C.bg}}>
@@ -729,6 +729,19 @@ function MisCitas({ citas }) {
           ))}
         </div>
       </div>
+
+      <div className="relative mb-4">
+      <span className="absolute left-3 top-1/2 -translate-y-1/2 text-sm" style={{color: C.light}}>🔍</span>
+      <input type="text" placeholder="Buscar por médico o especialidad..."
+        value={busqueda} onChange={e => setBusqueda(e.target.value)}
+        className="w-full rounded-xl pl-9 pr-4 py-2.5 text-sm outline-none"
+        style={{background:"white", border:`1px solid ${C.soft}`, color: C.dark}} />
+      {busqueda && (
+        <button onClick={() => setBusqueda("")}
+          className="absolute right-3 top-1/2 -translate-y-1/2 text-xs rounded-full px-1.5 py-0.5"
+          style={{color: C.light, background: C.pale}}>✕</button>
+      )}
+    </div>
 
       {filtradas.length===0 ? (
         <div className="rounded-2xl p-10 text-center shadow-sm" style={{background:"white", border:`1px solid ${C.soft}`}}>
@@ -762,6 +775,13 @@ function MisCitas({ citas }) {
                   {cita.monto > 0 && (
                     <span className="text-sm font-bold" style={{color: C.dark}}>${cita.monto} MXN</span>
                   )}
+                  {pudeCancelar(cita) && (
+                    <button onClick={() => setCitaACancelar(cita)}
+                      className="text-xs px-3 py-1.5 rounded-xl font-medium"
+                      style={{background:"#fef2f2", color:"#ef4444", border:"1px solid #fecaca"}}>
+                      Cancelar
+                    </button>
+                  )}
                 </div>
               </div>
             );
@@ -769,7 +789,7 @@ function MisCitas({ citas }) {
         </div>
       )}
     </div>
-    </>
+  </>
   );
 }
 
