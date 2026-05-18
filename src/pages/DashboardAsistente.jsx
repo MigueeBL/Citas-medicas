@@ -232,12 +232,114 @@ function SeccionInicio({ citas }) {
   );
 }
 
+function ModalConfirmarCobrar({ cita, onCerrar, onConfirmar }) {
+  const [metodo, setMetodo] = useState("efectivo");
+  return (
+    <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50">
+      <div className="bg-white rounded-2xl p-6 w-96 shadow-xl">
+        <h3 className="font-bold text-lg mb-1 text-gray-800">
+          Confirmar y cobrar cita
+        </h3>
+
+        {/* Info de la cita */}
+        <div className="bg-gray-50 rounded-xl p-4 mb-4">
+          <div className="flex justify-between mb-1">
+            <span className="text-xs text-gray-500">Paciente</span>
+            <span className="text-xs font-semibold text-gray-800">
+              {cita.paciente}
+            </span>
+          </div>
+          <div className="flex justify-between mb-1">
+            <span className="text-xs text-gray-500">Médico</span>
+            <span className="text-xs font-semibold text-gray-800">
+              {cita.medicoNombre || cita.medico}
+            </span>
+          </div>
+          <div className="flex justify-between mb-1">
+            <span className="text-xs text-gray-500">Fecha</span>
+            <span className="text-xs font-semibold text-gray-800">
+              {cita.fecha
+                ? new Date(cita.fecha + "T00:00:00").toLocaleDateString(
+                    "es-MX",
+                    { day: "numeric", month: "long" },
+                  )
+                : "—"}
+            </span>
+          </div>
+          <div className="flex justify-between mb-3">
+            <span className="text-xs text-gray-500">Hora</span>
+            <span className="text-xs font-semibold text-gray-800">
+              {cita.hora}
+            </span>
+          </div>
+          <div className="flex justify-between pt-3 border-t border-gray-200">
+            <span className="text-sm font-bold text-gray-700">
+              Total a cobrar
+            </span>
+            <span className="text-lg font-bold text-green-700">
+              ${cita.monto} MXN
+            </span>
+          </div>
+        </div>
+
+        {/* Método de pago */}
+        <label className="block text-sm font-medium text-gray-700 mb-2">
+          Método de pago
+        </label>
+        <div className="flex flex-col gap-2 mb-5">
+          {[
+            { id: "efectivo", label: "💵 Efectivo" },
+            { id: "tarjeta", label: "💳 Tarjeta" },
+            { id: "transferencia", label: "🏦 Transferencia" },
+          ].map((m) => (
+            <label
+              key={m.id}
+              className={`flex items-center gap-3 px-4 py-2.5 rounded-xl border cursor-pointer transition
+                ${metodo === m.id ? "border-blue-500 bg-blue-50" : "border-gray-200 hover:bg-gray-50"}`}
+            >
+              <input
+                type="radio"
+                className="accent-blue-600"
+                checked={metodo === m.id}
+                onChange={() => setMetodo(m.id)}
+              />
+              <span className="text-sm">{m.label}</span>
+            </label>
+          ))}
+        </div>
+
+        <div className="flex gap-3">
+          <button
+            onClick={onCerrar}
+            className="flex-1 border border-gray-200 rounded-xl py-2 text-sm font-medium text-gray-600 hover:bg-gray-50 transition"
+          >
+            Cancelar
+          </button>
+          <button
+            onClick={() => onConfirmar(cita.id, metodo)}
+            className="flex-1 bg-blue-600 text-white rounded-xl py-2 text-sm font-bold hover:bg-blue-500 transition"
+          >
+            ✓ Confirmar y cobrar
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function SeccionCitas({ citas }) {
   const [filtro, setFiltro] = useState("todas");
   const [modalCancel, setModalCancel] = useState(null);
 
-  const confirmar = async (id) => {
-    await updateDoc(doc(db, "citas", id), { estado: "confirmada" });
+  const [modalConfirmarCobrar, setModalConfirmarCobrar] = useState(null);
+
+  const confirmarYCobrar = async (id, metodo) => {
+    await updateDoc(doc(db, "citas", id), {
+      estado: "cobrada",
+      metodoPago: metodo,
+      fechaCobro: new Date().toISOString(),
+    });
+    setModalConfirmarCobrar(null);
   };
   const handleCancelar = async (id, motivo) => {
     await updateDoc(doc(db, "citas", id), { estado: "cancelada", motivo });
@@ -249,22 +351,15 @@ function SeccionCitas({ citas }) {
 
   return (
     <main className="flex-1 overflow-y-auto p-6">
-      <h1 className="text-3xl font-bold mb-6 text-gray-800">
-        Gestión de Citas
-      </h1>
+      <h1 className="text-3xl font-bold mb-6 text-gray-800">Gestión de Citas</h1>
       <div className="flex gap-2 mb-5 flex-wrap">
-        {["todas", "pendiente", "confirmada", "cobrada", "cancelada"].map(
-          (f) => (
-            <button
-              key={f}
-              onClick={() => setFiltro(f)}
-              className={`px-4 py-1.5 rounded-full text-sm font-medium transition
-              ${filtro === f ? "bg-blue-600 text-white" : "bg-white text-gray-600 border border-gray-200 hover:bg-blue-50"}`}
-            >
-              {f.charAt(0).toUpperCase() + f.slice(1)}
-            </button>
-          ),
-        )}
+        {["todas", "pendiente", "confirmada", "cobrada", "cancelada"].map(f => (
+          <button key={f} onClick={() => setFiltro(f)}
+            className={`px-4 py-1.5 rounded-full text-sm font-medium transition
+            ${filtro === f ? "bg-blue-600 text-white" : "bg-white text-gray-600 border border-gray-200 hover:bg-blue-50"}`}>
+            {f.charAt(0).toUpperCase() + f.slice(1)}
+          </button>
+        ))}
       </div>
       <div className="bg-white rounded-2xl shadow-sm overflow-hidden">
         <table className="w-full text-sm">
@@ -280,51 +375,30 @@ function SeccionCitas({ citas }) {
           </thead>
           <tbody>
             {filtradas.map((c, i) => (
-              <tr
-                key={c.id}
-                className={`border-t border-gray-50 ${i % 2 === 0 ? "" : "bg-gray-50/50"}`}
-              >
-                <td className="px-4 py-3 font-medium text-gray-800">
-                  {c.paciente}
-                </td>
+              <tr key={c.id} className={`border-t border-gray-50 ${i % 2 === 0 ? "" : "bg-gray-50/50"}`}>
+                <td className="px-4 py-3 font-medium text-gray-800">{c.paciente}</td>
+                <td className="px-4 py-3 text-gray-500">{c.medicoNombre || c.medico}</td>
                 <td className="px-4 py-3 text-gray-500">
-                  {c.medicoNombre || c.medico}
-                </td>
-                <td className="px-4 py-3 text-gray-500">
-                  {c.fecha
-                    ? new Date(c.fecha + "T00:00:00").toLocaleDateString(
-                        "es-MX",
-                        { day: "numeric", month: "short", year: "numeric" },
-                      )
-                    : "—"}
+                  {c.fecha ? new Date(c.fecha+"T00:00:00").toLocaleDateString("es-MX",{day:"numeric",month:"short",year:"numeric"}) : "—"}
                 </td>
                 <td className="px-4 py-3 text-gray-500">{c.hora}</td>
-                <td className="px-4 py-3">
-                  <Badge estado={c.estado} />
-                </td>
+                <td className="px-4 py-3"><Badge estado={c.estado} /></td>
                 <td className="px-4 py-3">
                   <div className="flex gap-2 items-center">
                     {c.estado === "pendiente" && (
-                      <button
-                        onClick={() => confirmar(c.id)}
-                        className="bg-blue-500 text-white text-xs px-3 py-1 rounded-lg hover:bg-blue-400 transition font-medium"
-                      >
+                      <button onClick={() => setModalConfirmarCobrar(c)}
+                        className="bg-blue-500 text-white text-xs px-3 py-1 rounded-lg hover:bg-blue-400 transition font-medium">
                         ✓ Confirmar
                       </button>
                     )}
-                    {(c.estado === "pendiente" ||
-                      c.estado === "confirmada") && (
-                      <button
-                        onClick={() => setModalCancel(c)}
-                        className="bg-red-500 text-white text-xs px-3 py-1 rounded-lg hover:bg-red-400 transition font-medium"
-                      >
+                    {(c.estado === "pendiente" || c.estado === "confirmada") && (
+                      <button onClick={() => setModalCancel(c)}
+                        className="bg-red-500 text-white text-xs px-3 py-1 rounded-lg hover:bg-red-400 transition font-medium">
                         ✕ Cancelar
                       </button>
                     )}
                     {c.estado === "cobrada" && (
-                      <span className="text-xs text-gray-400 italic">
-                        Completada
-                      </span>
+                      <span className="text-xs text-gray-400 italic">Completada</span>
                     )}
                     {c.estado === "cancelada" && (
                       <span className="text-xs text-gray-400 italic">—</span>
@@ -336,16 +410,23 @@ function SeccionCitas({ citas }) {
           </tbody>
         </table>
         {filtradas.length === 0 && (
-          <p className="text-center text-gray-400 py-8 text-sm">
-            No hay citas con este filtro
-          </p>
+          <p className="text-center text-gray-400 py-8 text-sm">No hay citas con este filtro</p>
         )}
       </div>
+
+      {/* ← Ambos modales DENTRO del return */}
       {modalCancel && (
         <ModalCancelar
           cita={modalCancel}
           onCerrar={() => setModalCancel(null)}
           onConfirmar={handleCancelar}
+        />
+      )}
+      {modalConfirmarCobrar && (
+        <ModalConfirmarCobrar
+          cita={modalConfirmarCobrar}
+          onCerrar={() => setModalConfirmarCobrar(null)}
+          onConfirmar={confirmarYCobrar}
         />
       )}
     </main>
