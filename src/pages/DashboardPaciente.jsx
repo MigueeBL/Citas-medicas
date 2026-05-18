@@ -37,7 +37,7 @@ function initials(nombre = "") {
   return nombre.split(" ").filter(w => w.length > 1).map(w => w[0]).join("").slice(0,2).toUpperCase() || "??";
 }
 
-const AVATAR_COLORS = ["#0d9488","#0284c7","#7c3aed","#db2777","#ea580c","#16a34a"];
+const AVATAR_COLORS = ["#0d9488","#0284c7","#803ef3","#db2777","#ea580c","#16a34a"];
 function avatarBg(str = "") { return AVATAR_COLORS[(str.charCodeAt(0) || 0) % AVATAR_COLORS.length]; }
 
 function contarHorarios(m) {
