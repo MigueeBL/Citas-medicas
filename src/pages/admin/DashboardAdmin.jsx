@@ -5,27 +5,28 @@ import {
 } from "recharts";
 import { collection, getDocs, query, where, Timestamp } from "firebase/firestore";
 import { db } from "../../firebase/config";
-
-const BLUE = "#185FA5";
-const BLUE_LT = "#B5D4F4";
-const TEAL = "#1D9E75";
-const AMBER = "#EF9F27";
-const GRAY = "#B4B2A9";
+import { useWindowWidth } from "./useWindowWidth";
+ 
+const BLUE     = "#185FA5";
+const BLUE_LT  = "#B5D4F4";
+const TEAL     = "#1D9E75";
+const AMBER    = "#EF9F27";
+const GRAY     = "#B4B2A9";
 const PIE_COLORS = [BLUE, BLUE_LT, TEAL, AMBER, GRAY];
-
+ 
 function getFirstDayOfMonth() {
   const d = new Date();
   return new Date(d.getFullYear(), d.getMonth(), 1);
 }
-
+ 
 function getWeekLabel(timestamp) {
   const day = timestamp?.toDate ? timestamp.toDate().getDate() : new Date(timestamp).getDate();
-  if (day <= 7) return "S1";
+  if (day <= 7)  return "S1";
   if (day <= 14) return "S2";
   if (day <= 21) return "S3";
   return "S4";
 }
-
+ 
 function MetricCard({ icon, label, value, sub, subColor, iconBg }) {
   return (
     <div style={styles.metricCard}>
@@ -36,7 +37,7 @@ function MetricCard({ icon, label, value, sub, subColor, iconBg }) {
     </div>
   );
 }
-
+ 
 function SectionCard({ title, children }) {
   return (
     <div style={styles.card}>
@@ -47,8 +48,12 @@ function SectionCard({ title, children }) {
     </div>
   );
 }
-
+ 
 export default function DashboardAdmin() {
+  const width    = useWindowWidth();
+  const isMobile = width < 768;
+  const isSmall  = width < 1024;
+ 
   const [loading, setLoading] = useState(true);
   const [metrics, setMetrics] = useState({
     totalCitas: 0, medicosActivos: 0, medicosPendientes: 0,
@@ -59,17 +64,16 @@ export default function DashboardAdmin() {
     { semana: "S3", citas: 0 }, { semana: "S4", citas: 0 },
   ]);
   const [especialidades, setEspecialidades] = useState([]);
-
+ 
   useEffect(() => { fetchDashboardData(); }, []);
-
+ 
   async function fetchDashboardData() {
     setLoading(true);
     try {
-      const inicioMes = Timestamp.fromDate(getFirstDayOfMonth());
       const unaSemanaAtras = new Date();
       unaSemanaAtras.setDate(unaSemanaAtras.getDate() - 7);
-
-      // ── Citas del mes ──────────────────────────────────────────────
+ 
+      // Citas del mes
       const citasSnap = await getDocs(collection(db, "citas"));
       const hoy = new Date();
       const citas = citasSnap.docs
@@ -77,10 +81,9 @@ export default function DashboardAdmin() {
         .filter((c) => {
           if (!c.fecha) return false;
           const fecha = new Date(c.fecha);
-          return fecha.getMonth() === hoy.getMonth() &&
-            fecha.getFullYear() === hoy.getFullYear();
+          return fecha.getMonth() === hoy.getMonth() && fecha.getFullYear() === hoy.getFullYear();
         });
-
+ 
       const semanasMap = { S1: 0, S2: 0, S3: 0, S4: 0 };
       citas.forEach((c) => {
         const s = getWeekLabel(c.fecha);
@@ -89,37 +92,31 @@ export default function DashboardAdmin() {
       setCitasPorSemana(
         Object.entries(semanasMap).map(([semana, citasN]) => ({ semana, citas: citasN }))
       );
-
-      // ── Médicos (de usuarios con rol medico) ───────────────────────
+ 
+      // Médicos
       const medicosSnap = await getDocs(
         query(collection(db, "usuarios"), where("rol", "==", "medico"))
       );
       const medicos = medicosSnap.docs.map((d) => d.data());
-      const medicosActivos = medicos.filter((m) => m.estado === "aprobado").length;
+      const medicosActivos    = medicos.filter((m) => m.estado === "aprobado").length;
       const medicosPendientes = medicos.filter((m) => m.estado === "pendiente").length;
-
-      // Especialidades para la dona
+ 
       const espMap = {};
       medicos.forEach((m) => {
         const esp = m.especialidad || "Sin especialidad";
         espMap[esp] = (espMap[esp] || 0) + 1;
       });
       setEspecialidades(
-        Object.entries(espMap)
-          .map(([name, value]) => ({ name, value }))
+        Object.entries(espMap).map(([name, value]) => ({ name, value }))
           .sort((a, b) => b.value - a.value)
       );
-
-      // ── Pacientes ──────────────────────────────────────────────────
-
-
-      // Trae todos los usuarios de una sola consulta
+ 
+      // Todos los usuarios
       const usuariosSnap = await getDocs(collection(db, "usuarios"));
       const usuarios = usuariosSnap.docs.map((d) => d.data());
-
-      const pacientes = usuarios.filter((u) => u.rol === "paciente");
+      const pacientes  = usuarios.filter((u) => u.rol === "paciente");
       const asistentes = usuarios.filter((u) => u.rol === "asistente");
-
+ 
       const nuevosPacientes = pacientes.filter((p) => {
         if (!p.fechaRegistro) return false;
         const fecha = p.fechaRegistro?.toDate
@@ -127,11 +124,10 @@ export default function DashboardAdmin() {
           : new Date(p.fechaRegistro);
         return fecha >= unaSemanaAtras;
       }).length;
-
+ 
       setMetrics({
         totalCitas: citas.length,
-        medicosActivos,
-        medicosPendientes,
+        medicosActivos, medicosPendientes,
         pacientes: pacientes.length,
         asistentes: asistentes.length,
         nuevosPacientes,
@@ -142,8 +138,7 @@ export default function DashboardAdmin() {
       setLoading(false);
     }
   }
-
-
+ 
   const CustomTooltip = ({ active, payload, label }) => {
     if (active && payload?.length) {
       return (
@@ -155,7 +150,7 @@ export default function DashboardAdmin() {
     }
     return null;
   };
-
+ 
   if (loading) {
     return (
       <div style={styles.loadingWrap}>
@@ -163,11 +158,20 @@ export default function DashboardAdmin() {
       </div>
     );
   }
-
+ 
+  // Columnas del grid de métricas según ancho
+  const metricCols = isMobile ? "repeat(2, 1fr)" : isSmall ? "repeat(2, 1fr)" : "repeat(4, 1fr)";
+  const chartCols  = isMobile || isSmall ? "1fr" : "1.4fr 1fr";
+ 
   return (
-    <div style={styles.page}>
+    <div style={{ ...styles.page, padding: isMobile ? "48px 12px 12px" : isSmall ? 16 : 24 }}>
       {/* Encabezado */}
-      <div style={styles.header}>
+      <div style={{
+        ...styles.header,
+        flexDirection: isMobile ? "column" : "row",
+        gap: isMobile ? 10 : 0,
+        marginBottom: isMobile ? 16 : 24,
+      }}>
         <div>
           <h1 style={styles.pageTitle}>Dashboard general</h1>
           <p style={styles.pageSubtitle}>
@@ -177,22 +181,22 @@ export default function DashboardAdmin() {
         </div>
         <button style={styles.refreshBtn} onClick={fetchDashboardData}>↻ Actualizar</button>
       </div>
-
+ 
       {/* Métricas */}
-      <div style={styles.metricsGrid}>
-        <MetricCard icon="📅" label="Citas este mes" value={metrics.totalCitas}
+      <div style={{ ...styles.metricsGrid, gridTemplateColumns: metricCols }}>
+        <MetricCard icon="📅" label="Citas este mes"        value={metrics.totalCitas}
           sub="↑ Actualizado en tiempo real" subColor={TEAL} iconBg="#E6F1FB" />
-        <MetricCard icon="🩺" label="Médicos aprobados" value={metrics.medicosActivos}
-          sub={`${metrics.medicosPendientes} pendientes de validar`}
+        <MetricCard icon="🩺" label="Médicos aprobados"     value={metrics.medicosActivos}
+          sub={`${metrics.medicosPendientes} pendientes`}
           subColor={metrics.medicosPendientes > 0 ? "#854F0B" : TEAL} iconBg="#FAEEDA" />
-        <MetricCard icon="👥" label="Pacientes registrados" value={metrics.pacientes}
+        <MetricCard icon="👥" label="Pacientes"             value={metrics.pacientes}
           sub={`+${metrics.nuevosPacientes} nuevos esta semana`} subColor={TEAL} iconBg="#E1F5EE" />
-        <MetricCard icon="🧑‍💼" label="Asistentes" value={metrics.asistentes}
+        <MetricCard icon="🧑‍💼" label="Asistentes"           value={metrics.asistentes}
           sub="Registrados en la plataforma" subColor={GRAY} iconBg="#F0E8FB" />
       </div>
-
+ 
       {/* Gráficas */}
-      <div style={styles.chartsRow}>
+      <div style={{ ...styles.chartsRow, gridTemplateColumns: chartCols }}>
         <SectionCard title="Citas por semana">
           <ResponsiveContainer width="100%" height={200}>
             <BarChart data={citasPorSemana} barSize={36}>
@@ -212,17 +216,15 @@ export default function DashboardAdmin() {
             </BarChart>
           </ResponsiveContainer>
         </SectionCard>
-
+ 
         <SectionCard title="Especialidades">
           {especialidades.length === 0 ? (
-            <p style={{ color: "#aaa", fontSize: 13, textAlign: "center", paddingTop: 40 }}>
-              Sin datos
-            </p>
+            <p style={{ color: "#aaa", fontSize: 13, textAlign: "center", paddingTop: 40 }}>Sin datos</p>
           ) : (
             <ResponsiveContainer width="100%" height={200}>
               <PieChart>
                 <Pie data={especialidades} cx="50%" cy="50%"
-                  innerRadius={55} outerRadius={80} paddingAngle={3} dataKey="value">
+                  innerRadius={50} outerRadius={75} paddingAngle={3} dataKey="value">
                   {especialidades.map((_, i) => (
                     <Cell key={i} fill={PIE_COLORS[i % PIE_COLORS.length]} />
                   ))}
@@ -230,9 +232,7 @@ export default function DashboardAdmin() {
                 <Tooltip formatter={(value, name) => [`${value} médicos`, name]}
                   contentStyle={styles.tooltip} />
                 <Legend iconType="circle" iconSize={8}
-                  formatter={(value) => (
-                    <span style={{ fontSize: 12, color: "#555" }}>{value}</span>
-                  )} />
+                  formatter={(value) => <span style={{ fontSize: 12, color: "#555" }}>{value}</span>} />
               </PieChart>
             </ResponsiveContainer>
           )}
@@ -241,23 +241,23 @@ export default function DashboardAdmin() {
     </div>
   );
 }
-
+ 
 const styles = {
-  page: { padding: "24px", background: "#f0f4f9", minHeight: "100vh", fontFamily: "sans-serif" },
-  header: { display: "flex", alignItems: "flex-start", justifyContent: "space-between", marginBottom: 24 },
-  pageTitle: { fontSize: 20, fontWeight: 600, color: "#1a1a2e", margin: 0 },
-  pageSubtitle: { fontSize: 13, color: "#888", marginTop: 4 },
-  refreshBtn: { padding: "8px 16px", borderRadius: 8, border: `1px solid ${BLUE}`, background: "white", color: BLUE, fontSize: 13, cursor: "pointer", fontWeight: 500 },
-  metricsGrid: { display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 14, marginBottom: 20 },
-  metricCard: { background: "white", borderRadius: 12, border: "0.5px solid #e5e7eb", padding: "16px 18px" },
-  metricIcon: { width: 38, height: 38, borderRadius: 10, display: "flex", alignItems: "center", justifyContent: "center", marginBottom: 12, fontSize: 20 },
+  page:        { background: "#f0f4f9", minHeight: "100vh", fontFamily: "sans-serif" },
+  header:      { display: "flex", alignItems: "flex-start", justifyContent: "space-between" },
+  pageTitle:   { fontSize: 20, fontWeight: 600, color: "#1a1a2e", margin: 0 },
+  pageSubtitle:{ fontSize: 13, color: "#888", marginTop: 4 },
+  refreshBtn:  { padding: "8px 16px", borderRadius: 8, border: `1px solid ${BLUE}`, background: "white", color: BLUE, fontSize: 13, cursor: "pointer", fontWeight: 500, whiteSpace: "nowrap" },
+  metricsGrid: { display: "grid", gap: 12, marginBottom: 16 },
+  metricCard:  { background: "white", borderRadius: 12, border: "0.5px solid #e5e7eb", padding: "14px 16px" },
+  metricIcon:  { width: 36, height: 36, borderRadius: 10, display: "flex", alignItems: "center", justifyContent: "center", marginBottom: 10, fontSize: 18 },
   metricLabel: { fontSize: 12, color: "#888", margin: "0 0 4px" },
-  metricValue: { fontSize: 22, fontWeight: 600, color: "#1a1a2e", margin: 0 },
-  metricSub: { fontSize: 11, marginTop: 4 },
-  chartsRow: { display: "grid", gridTemplateColumns: "1.4fr 1fr", gap: 14 },
-  card: { background: "white", borderRadius: 12, border: "0.5px solid #e5e7eb", padding: "18px 20px" },
-  cardHeader: { display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 16 },
-  cardTitle: { fontSize: 14, fontWeight: 600, color: "#1a1a2e" },
-  tooltip: { background: "white", border: "0.5px solid #e5e7eb", borderRadius: 8, padding: "8px 12px", fontSize: 13 },
+  metricValue: { fontSize: 20, fontWeight: 600, color: "#1a1a2e", margin: 0 },
+  metricSub:   { fontSize: 11, marginTop: 4 },
+  chartsRow:   { display: "grid", gap: 14 },
+  card:        { background: "white", borderRadius: 12, border: "0.5px solid #e5e7eb", padding: "18px 20px" },
+  cardHeader:  { display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 16 },
+  cardTitle:   { fontSize: 14, fontWeight: 600, color: "#1a1a2e" },
+  tooltip:     { background: "white", border: "0.5px solid #e5e7eb", borderRadius: 8, padding: "8px 12px", fontSize: 13 },
   loadingWrap: { display: "flex", alignItems: "center", justifyContent: "center", height: "60vh" },
 };

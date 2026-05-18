@@ -150,7 +150,7 @@ export default function CitasMensuales() {
                                                     {c.estado ?? "—"}
                                                 </span>
                                             </td>
-                                            
+
                                         </tr>
                                     ))}
                                 </tbody>

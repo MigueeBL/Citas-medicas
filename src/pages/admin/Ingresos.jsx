@@ -1,206 +1,208 @@
 import { useState, useEffect } from "react";
-import { getMedicos } from "../../models/Medicos";
 import { db } from "../../firebase/config";
 import { collection, getDocs } from "firebase/firestore";
+import { useWindowWidth } from "./useWindowWidth";
 import {
-    BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell
+  BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell
 } from "recharts";
-
-const BLUE = "#185FA5";
+ 
+const BLUE    = "#185FA5";
 const BLUE_LT = "#B5D4F4";
-
-const MESES = [
-    "Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio",
-    "Julio", "Agosto", "Septiembre", "Octubre", "Noviembre", "Diciembre"
-];
-
+const MESES   = ["Enero","Febrero","Marzo","Abril","Mayo","Junio","Julio","Agosto","Septiembre","Octubre","Noviembre","Diciembre"];
+ 
 export default function Ingresos() {
-    const hoy = new Date();
-    const [mes, setMes] = useState(hoy.getMonth());
-    const [anio, setAnio] = useState(hoy.getFullYear());
-    const [datos, setDatos] = useState([]);
-    const [loading, setLoading] = useState(true);
-    const [total, setTotal] = useState(0);
-
-    useEffect(() => { fetchIngresos(); }, [mes, anio]);
-
-    async function fetchIngresos() {
-        setLoading(true);
-        try {
-            // Trae todas las citas y filtra por mes en el cliente
-            const snap = await getDocs(collection(db, "citas"));
-            const todasCitas = snap.docs.map((d) => ({ id: d.id, ...d.data() }));
-
-            const citasMes = todasCitas.filter((c) => {
-                if (!c.fecha) return false;
-                const fecha = new Date(c.fecha);
-                return fecha.getMonth() === mes && fecha.getFullYear() === anio;
-            });
-
-            // Traer médicos para obtener nombres
-            const medicosSnap = await getDocs(collection(db, "usuarios"));
-            const medicosMap = {};
-            medicosSnap.docs.forEach((d) => {
-                const data = d.data();
-                if (data.rol === "medico") medicosMap[d.id] = data;
-            });
-
-            // Agrupar por médico usando el campo "medico" de cada cita
-            // Agrupar por médico usando medicoId y medicoNombre
-            const ingresosMap = {};
-            citasMes.forEach((c) => {
-                const mid = c.medicoId ?? c.medico ?? "desconocido";
-                if (!ingresosMap[mid]) {
-                    ingresosMap[mid] = {
-                        medicoId: mid,
-                        nombre: c.medicoNombre ?? medicosMap[mid]?.nombre ?? "Médico desconocido",
-                        especialidad: c.especialidad ?? medicosMap[mid]?.especialidad ?? "—",
-                        citas: 0,
-                        ingresos: 0,
-                    };
-                }
-                ingresosMap[mid].citas += 1;
-                ingresosMap[mid].ingresos += c.monto ?? 0;
-            });
-
-            const resultado = Object.values(ingresosMap).sort((a, b) => b.ingresos - a.ingresos);
-            setDatos(resultado);
-            setTotal(resultado.reduce((acc, r) => acc + r.ingresos, 0));
-        } catch (err) {
-            console.error("Error cargando ingresos:", err);
-        } finally {
-            setLoading(false);
+  const width    = useWindowWidth();
+  const isMobile = width < 768;
+  const isSmall  = width < 1024;
+ 
+  const hoy = new Date();
+  const [mes,     setMes]     = useState(hoy.getMonth());
+  const [anio,    setAnio]    = useState(hoy.getFullYear());
+  const [datos,   setDatos]   = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [total,   setTotal]   = useState(0);
+ 
+  useEffect(() => { fetchIngresos(); }, [mes, anio]);
+ 
+  async function fetchIngresos() {
+    setLoading(true);
+    try {
+      const snap      = await getDocs(collection(db, "citas"));
+      const todasCitas = snap.docs.map((d) => ({ id: d.id, ...d.data() }));
+      const citasMes  = todasCitas.filter((c) => {
+        if (!c.fecha) return false;
+        const fecha = new Date(c.fecha);
+        return fecha.getMonth() === mes && fecha.getFullYear() === anio;
+      });
+ 
+      const medicosSnap = await getDocs(collection(db, "usuarios"));
+      const medicosMap  = {};
+      medicosSnap.docs.forEach((d) => {
+        const data = d.data();
+        if (data.rol === "medico") medicosMap[d.id] = data;
+      });
+ 
+      const ingresosMap = {};
+      citasMes.forEach((c) => {
+        const mid = c.medicoId ?? c.medico ?? "desconocido";
+        if (!ingresosMap[mid]) {
+          ingresosMap[mid] = {
+            medicoId:     mid,
+            nombre:       c.medicoNombre ?? medicosMap[mid]?.nombre ?? "Médico desconocido",
+            especialidad: c.especialidad ?? medicosMap[mid]?.especialidad ?? "—",
+            citas:        0,
+            ingresos:     0,
+          };
         }
+        ingresosMap[mid].citas    += 1;
+        ingresosMap[mid].ingresos += c.monto ?? 0;
+      });
+ 
+      const resultado = Object.values(ingresosMap).sort((a, b) => b.ingresos - a.ingresos);
+      setDatos(resultado);
+      setTotal(resultado.reduce((acc, r) => acc + r.ingresos, 0));
+    } catch (err) {
+      console.error("Error cargando ingresos:", err);
+    } finally {
+      setLoading(false);
     }
-
-    const CustomTooltip = ({ active, payload, label }) => {
-        if (active && payload?.length) {
-            return (
-                <div style={{ background: "white", border: "0.5px solid #e5e7eb", borderRadius: 8, padding: "8px 12px", fontSize: 13 }}>
-                    <p style={{ color: "#888", marginBottom: 4, fontSize: 12 }}>{label}</p>
-                    <p style={{ color: BLUE, fontWeight: 600 }}>${payload[0].value.toLocaleString("es-MX")}</p>
-                </div>
-            );
-        }
-        return null;
-    };
-
-    return (
-        <div>
-            {/* Encabezado */}
-            <div style={styles.header}>
-                <div>
-                    <h1 style={styles.title}>Ingresos por médico</h1>
-                    <p style={styles.subtitle}>Reporte de pagos agrupados por médico</p>
-                </div>
-                {/* Selector de período */}
-                <div style={styles.periodSelector}>
-                    <select style={styles.select} value={mes} onChange={(e) => setMes(Number(e.target.value))}>
-                        {MESES.map((m, i) => <option key={i} value={i}>{m}</option>)}
-                    </select>
-                    <select style={styles.select} value={anio} onChange={(e) => setAnio(Number(e.target.value))}>
-                        {[2024, 2025, 2026].map((a) => <option key={a} value={a}>{a}</option>)}
-                    </select>
-                </div>
-            </div>
-
-            {/* Total del período */}
-            <div style={styles.totalCard}>
-                <div style={styles.totalLabel}>Total de ingresos — {MESES[mes]} {anio}</div>
-                <div style={styles.totalValue}>${total.toLocaleString("es-MX")}</div>
-                <div style={styles.totalSub}>{datos.reduce((a, d) => a + d.citas, 0)} citas cobradas</div>
-            </div>
-
-            {loading ? (
-                <p style={styles.empty}>Cargando ingresos...</p>
-            ) : datos.length === 0 ? (
-                <p style={styles.empty}>Sin registros de pago para este período.</p>
-            ) : (
-                <>
-                    {/* Gráfica de barras */}
-                    <div style={styles.card}>
-                        <h2 style={styles.cardTitle}>Ingresos por médico</h2>
-                        <ResponsiveContainer width="100%" height={220}>
-                            <BarChart data={datos} barSize={40}>
-                                <XAxis
-                                    dataKey="nombre"
-                                    axisLine={false}
-                                    tickLine={false}
-                                    tick={{ fontSize: 11, fill: "#888" }}
-                                    tickFormatter={(v) => v.split(" ").slice(-1)[0]} // apellido
-                                />
-                                <YAxis
-                                    axisLine={false}
-                                    tickLine={false}
-                                    tick={{ fontSize: 11, fill: "#888" }}
-                                    tickFormatter={(v) => `$${(v / 1000).toFixed(0)}k`}
-                                />
-                                <Tooltip content={<CustomTooltip />} cursor={{ fill: "#f0f4f9" }} />
-                                <Bar dataKey="ingresos" radius={[6, 6, 0, 0]}>
-                                    {datos.map((_, i) => (
-                                        <Cell key={i} fill={i === 0 ? BLUE : BLUE_LT} />
-                                    ))}
-                                </Bar>
-                            </BarChart>
-                        </ResponsiveContainer>
-                    </div>
-
-                    {/* Tabla */}
-                    <div style={{ ...styles.card, marginTop: 14 }}>
-                        <table style={styles.table}>
-                            <thead>
-                                <tr>
-                                    {["#", "Médico", "Especialidad", "Citas", "Ingresos", "Promedio/cita"].map((h) => (
-                                        <th key={h} style={styles.th}>{h}</th>
-                                    ))}
-                                </tr>
-                            </thead>
-                            <tbody>
-                                {datos.map((d, i) => (
-                                    <tr key={d.medicoId} style={styles.tr}>
-                                        <td style={{ ...styles.td, color: "#aaa", width: 30 }}>{i + 1}</td>
-                                        <td style={styles.td}>
-                                            <div style={styles.medicoCell}>
-                                                <div style={styles.avatar}>{d.nombre[0]}</div>
-                                                <span style={{ fontWeight: 500 }}>{d.nombre}</span>
-                                            </div>
-                                        </td>
-                                        <td style={{ ...styles.td, color: "#555" }}>{d.especialidad}</td>
-                                        <td style={styles.td}>{d.citas}</td>
-                                        <td style={{ ...styles.td, fontWeight: 600, color: BLUE }}>
-                                            ${d.ingresos.toLocaleString("es-MX")}
-                                        </td>
-                                        <td style={{ ...styles.td, color: "#555" }}>
-                                            ${Math.round(d.ingresos / d.citas).toLocaleString("es-MX")}
-                                        </td>
-                                    </tr>
-                                ))}
-                            </tbody>
-                        </table>
-                    </div>
-                </>
-            )}
+  }
+ 
+  const CustomTooltip = ({ active, payload, label }) => {
+    if (active && payload?.length) {
+      return (
+        <div style={{ background: "white", border: "0.5px solid #e5e7eb", borderRadius: 8, padding: "8px 12px", fontSize: 13 }}>
+          <p style={{ color: "#888", marginBottom: 4, fontSize: 12 }}>{label}</p>
+          <p style={{ color: BLUE, fontWeight: 600 }}>${payload[0].value.toLocaleString("es-MX")}</p>
         </div>
-    );
+      );
+    }
+    return null;
+  };
+ 
+  const padding = isMobile ? "48px 12px 12px" : isSmall ? 16 : 24;
+ 
+  return (
+    <div style={{ padding, background: "#f0f4f9", minHeight: "100vh", fontFamily: "sans-serif" }}>
+      {/* Encabezado */}
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 20, flexDirection: isMobile ? "column" : "row", gap: isMobile ? 10 : 0 }}>
+        <div>
+          <h1 style={styles.title}>Ingresos por médico</h1>
+          <p style={styles.subtitle}>Reporte de pagos agrupados por médico</p>
+        </div>
+        <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+          <select style={styles.select} value={mes}  onChange={(e) => setMes(Number(e.target.value))}>
+            {MESES.map((m, i) => <option key={i} value={i}>{m}</option>)}
+          </select>
+          <select style={styles.select} value={anio} onChange={(e) => setAnio(Number(e.target.value))}>
+            {[2024, 2025, 2026].map((a) => <option key={a} value={a}>{a}</option>)}
+          </select>
+        </div>
+      </div>
+ 
+      {/* Total */}
+      <div style={styles.totalCard}>
+        <div style={styles.totalLabel}>Total de ingresos — {MESES[mes]} {anio}</div>
+        <div style={styles.totalValue}>${total.toLocaleString("es-MX")}</div>
+        <div style={styles.totalSub}>{datos.reduce((a, d) => a + d.citas, 0)} citas cobradas</div>
+      </div>
+ 
+      {loading ? (
+        <p style={styles.empty}>Cargando ingresos...</p>
+      ) : datos.length === 0 ? (
+        <p style={styles.empty}>Sin registros de pago para este período.</p>
+      ) : (
+        <>
+          {/* Gráfica — oculta en móvil si hay muchos datos */}
+          {!isMobile && (
+            <div style={styles.card}>
+              <h2 style={styles.cardTitle}>Ingresos por médico</h2>
+              <ResponsiveContainer width="100%" height={220}>
+                <BarChart data={datos} barSize={40}>
+                  <XAxis dataKey="nombre" axisLine={false} tickLine={false}
+                    tick={{ fontSize: 11, fill: "#888" }}
+                    tickFormatter={(v) => v.split(" ").slice(-1)[0]} />
+                  <YAxis axisLine={false} tickLine={false}
+                    tick={{ fontSize: 11, fill: "#888" }}
+                    tickFormatter={(v) => `$${(v / 1000).toFixed(0)}k`} />
+                  <Tooltip content={<CustomTooltip />} cursor={{ fill: "#f0f4f9" }} />
+                  <Bar dataKey="ingresos" radius={[6, 6, 0, 0]}>
+                    {datos.map((_, i) => <Cell key={i} fill={i === 0 ? BLUE : BLUE_LT} />)}
+                  </Bar>
+                </BarChart>
+              </ResponsiveContainer>
+            </div>
+          )}
+ 
+          {/* Tabla / tarjetas */}
+          {isMobile ? (
+            <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+              {datos.map((d, i) => (
+                <div key={d.medicoId} style={{ background: "white", borderRadius: 12, border: "0.5px solid #e5e7eb", padding: "14px 16px" }}>
+                  <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 8 }}>
+                    <div style={styles.avatar}>{d.nombre[0]}</div>
+                    <div>
+                      <div style={{ fontWeight: 500, fontSize: 13 }}>{d.nombre}</div>
+                      <div style={{ fontSize: 11, color: "#888" }}>{d.especialidad}</div>
+                    </div>
+                    <div style={{ marginLeft: "auto", fontWeight: 700, color: BLUE, fontSize: 16 }}>
+                      ${d.ingresos.toLocaleString("es-MX")}
+                    </div>
+                  </div>
+                  <div style={{ display: "flex", gap: 12, fontSize: 12, color: "#555" }}>
+                    <span>{d.citas} citas</span>
+                    <span>Promedio: ${Math.round(d.ingresos / d.citas).toLocaleString("es-MX")}</span>
+                  </div>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <div style={{ ...styles.card, marginTop: 14, overflow: "auto" }}>
+              <table style={styles.table}>
+                <thead>
+                  <tr>{["#","Médico","Especialidad","Citas","Ingresos","Promedio/cita"].map((h) => <th key={h} style={styles.th}>{h}</th>)}</tr>
+                </thead>
+                <tbody>
+                  {datos.map((d, i) => (
+                    <tr key={d.medicoId} style={styles.tr}>
+                      <td style={{ ...styles.td, color: "#aaa", width: 30 }}>{i + 1}</td>
+                      <td style={styles.td}>
+                        <div style={styles.medicoCell}>
+                          <div style={styles.avatar}>{d.nombre[0]}</div>
+                          <span style={{ fontWeight: 500 }}>{d.nombre}</span>
+                        </div>
+                      </td>
+                      <td style={{ ...styles.td, color: "#555" }}>{d.especialidad}</td>
+                      <td style={styles.td}>{d.citas}</td>
+                      <td style={{ ...styles.td, fontWeight: 600, color: BLUE }}>${d.ingresos.toLocaleString("es-MX")}</td>
+                      <td style={{ ...styles.td, color: "#555" }}>${Math.round(d.ingresos / d.citas).toLocaleString("es-MX")}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </>
+      )}
+    </div>
+  );
 }
-
+ 
 const styles = {
-    header: { display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 20 },
-    title: { fontSize: 20, fontWeight: 600, color: "#1a1a2e", margin: 0 },
-    subtitle: { fontSize: 13, color: "#888", marginTop: 4 },
-    periodSelector: { display: "flex", gap: 8 },
-    select: { padding: "8px 12px", borderRadius: 8, border: "0.5px solid #d1d5db", fontSize: 13, background: "white", cursor: "pointer" },
-    totalCard: { background: BLUE, borderRadius: 12, padding: "20px 24px", marginBottom: 16, color: "white" },
-    totalLabel: { fontSize: 13, color: "rgba(255,255,255,0.7)", marginBottom: 6 },
-    totalValue: { fontSize: 32, fontWeight: 700, letterSpacing: "-0.5px" },
-    totalSub: { fontSize: 12, color: "rgba(255,255,255,0.6)", marginTop: 4 },
-    card: { background: "white", borderRadius: 12, border: "0.5px solid #e5e7eb", padding: "18px 20px" },
-    cardTitle: { fontSize: 14, fontWeight: 600, color: "#1a1a2e", marginBottom: 16 },
-    table: { width: "100%", borderCollapse: "collapse", fontSize: 13 },
-    th: { textAlign: "left", padding: "10px 14px", fontSize: 11, fontWeight: 600, color: "#888", borderBottom: "0.5px solid #e5e7eb" },
-    tr: { borderBottom: "0.5px solid #f3f4f6" },
-    td: { padding: "11px 14px", color: "#1a1a2e", verticalAlign: "middle" },
-    medicoCell: { display: "flex", alignItems: "center", gap: 10 },
-    avatar: { width: 30, height: 30, borderRadius: "50%", background: "#E6F1FB", color: BLUE, display: "flex", alignItems: "center", justifyContent: "center", fontWeight: 600, fontSize: 13 },
-    empty: { textAlign: "center", color: "#aaa", padding: "40px 0", fontSize: 13 },
+  title:      { fontSize: 20, fontWeight: 600, color: "#1a1a2e", margin: 0 },
+  subtitle:   { fontSize: 13, color: "#888", marginTop: 4 },
+  select:     { padding: "8px 12px", borderRadius: 8, border: "0.5px solid #d1d5db", fontSize: 13, background: "white", cursor: "pointer" },
+  totalCard:  { background: BLUE, borderRadius: 12, padding: "18px 22px", marginBottom: 14, color: "white" },
+  totalLabel: { fontSize: 13, color: "rgba(255,255,255,0.7)", marginBottom: 6 },
+  totalValue: { fontSize: 30, fontWeight: 700, letterSpacing: "-0.5px" },
+  totalSub:   { fontSize: 12, color: "rgba(255,255,255,0.6)", marginTop: 4 },
+  card:       { background: "white", borderRadius: 12, border: "0.5px solid #e5e7eb", padding: "16px 18px" },
+  cardTitle:  { fontSize: 14, fontWeight: 600, color: "#1a1a2e", marginBottom: 14 },
+  table:      { width: "100%", borderCollapse: "collapse", fontSize: 13 },
+  th:         { textAlign: "left", padding: "10px 14px", fontSize: 11, fontWeight: 600, color: "#888", borderBottom: "0.5px solid #e5e7eb", whiteSpace: "nowrap" },
+  tr:         { borderBottom: "0.5px solid #f3f4f6" },
+  td:         { padding: "11px 14px", color: "#1a1a2e", verticalAlign: "middle" },
+  medicoCell: { display: "flex", alignItems: "center", gap: 10 },
+  avatar:     { width: 30, height: 30, borderRadius: "50%", background: "#E6F1FB", color: BLUE, display: "flex", alignItems: "center", justifyContent: "center", fontWeight: 600, fontSize: 13, flexShrink: 0 },
+  empty:      { textAlign: "center", color: "#aaa", padding: "40px 0", fontSize: 13 },
 };
