@@ -8,7 +8,6 @@ La plataforma permite a los pacientes agendar citas médicas de manera sencilla,
 El proyecto fue desarrollado siguiendo una arquitectura moderna basada en servicios en la nube y un enfoque responsive para garantizar accesibilidad desde dispositivos móviles y computadoras.
 
 ## 🚀 Tecnologías y Herramientas Utilizadas
-Frontend
 React + Vite 
 Tailwind CSS 
 Firebase
