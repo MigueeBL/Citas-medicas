@@ -201,8 +201,9 @@ const styles = {
   table:      { width: "100%", borderCollapse: "collapse", fontSize: 13 },
   th:         { textAlign: "left", padding: "10px 14px", fontSize: 11, fontWeight: 600, color: "#888", borderBottom: "0.5px solid #e5e7eb", whiteSpace: "nowrap" },
   tr:         { borderBottom: "0.5px solid #f3f4f6" },
-  td:         { padding: "11px 14px", color: "#1a1a2e", verticalAlign: "middle" },
+  td:         { padding: "11px 14px", color: "#13132d", verticalAlign: "middle" },
   medicoCell: { display: "flex", alignItems: "center", gap: 10 },
   avatar:     { width: 30, height: 30, borderRadius: "50%", background: "#E6F1FB", color: BLUE, display: "flex", alignItems: "center", justifyContent: "center", fontWeight: 600, fontSize: 13, flexShrink: 0 },
   empty:      { textAlign: "center", color: "#aaa", padding: "40px 0", fontSize: 13 },
 };
+//
