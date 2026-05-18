@@ -3,7 +3,7 @@ import { auth, db } from "../firebase/config";
 import { signOut } from "firebase/auth";
 import {
   collection, query, where, getDocs,
-  addDoc, onSnapshot, Timestamp, doc
+  addDoc, onSnapshot, doc
 } from "firebase/firestore";
 import { useNavigate } from "react-router-dom";
 import logo from "../assets/logo.png";
@@ -19,6 +19,8 @@ const C = {
 
 const MESES = ["Enero","Febrero","Marzo","Abril","Mayo","Junio","Julio",
                "Agosto","Septiembre","Octubre","Noviembre","Diciembre"];
+
+const DIAS_SEMANA = ["domingo","lunes","martes","miercoles","jueves","viernes","sabado"];
 
 function getToday() {
   const d = new Date();
@@ -83,9 +85,9 @@ function Sidebar({ seccion, setSeccion, user, onLogout }) {
 // ── Bottom nav móvil ───────────────────────────────────────────────────────
 function BottomNav({ seccion, setSeccion, onLogout }) {
   const items = [
-    { id: "dashboard", label: "Inicio",  icon: "⊞" },
-    { id: "agendar",   label: "Agendar", icon: "➕" },
-    { id: "miscitas",  label: "Mis citas",icon:"📅" },
+    { id: "dashboard", label: "Inicio",   icon: "⊞" },
+    { id: "agendar",   label: "Agendar",  icon: "➕" },
+    { id: "miscitas",  label: "Mis citas",icon: "📅" },
   ];
   return (
     <nav className="md:hidden fixed bottom-0 left-0 right-0 z-50 flex"
@@ -141,7 +143,6 @@ function DashboardView({ user, citas, setSeccion }) {
 
   return (
     <div className="flex-1 p-4 md:p-6 overflow-y-auto pb-20 md:pb-6" style={{background: C.bg}}>
-      {/* Header desktop */}
       <div className="hidden md:flex items-center justify-between mb-6">
         <div>
           <h1 className="text-2xl font-bold" style={{color: C.dark}}>
@@ -163,7 +164,6 @@ function DashboardView({ user, citas, setSeccion }) {
         </div>
       </div>
 
-      {/* Saludo móvil */}
       <div className="md:hidden mb-4">
         <h1 className="text-lg font-bold" style={{color: C.dark}}>
           ¡Hola, {user?.nombre?.split(" ")[0]||"Paciente"}! 👋
@@ -173,9 +173,7 @@ function DashboardView({ user, citas, setSeccion }) {
         </p>
       </div>
 
-      {/* Widgets */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6">
-        {/* Próxima cita */}
         <div className="rounded-2xl p-4 shadow-sm sm:col-span-2" style={{background:"white", border:`1px solid ${C.soft}`}}>
           <p className="text-xs font-medium mb-3" style={{color: C.mid}}>📋 Próxima cita</p>
           {proxima ? (
@@ -195,7 +193,7 @@ function DashboardView({ user, citas, setSeccion }) {
                 <span className="text-xs px-2 py-1 rounded-full font-medium" style={{background: C.pale, color: C.mid}}>
                   {diasRestantes(proxima.fecha)}
                 </span>
-                <p className="text-xs mt-1" style={{color: C.light}}>${proxima.monto} MXN</p>
+                {proxima.monto > 0 && <p className="text-xs mt-1" style={{color: C.light}}>${proxima.monto} MXN</p>}
               </div>
             </div>
           ) : (
@@ -210,7 +208,6 @@ function DashboardView({ user, citas, setSeccion }) {
           )}
         </div>
 
-        {/* Total */}
         <div className="rounded-2xl p-4 shadow-sm" style={{background:"white", border:`1px solid ${C.soft}`}}>
           <p className="text-xs" style={{color: C.mid}}>Citas totales</p>
           <p className="text-3xl font-bold my-1" style={{color: C.dark}}>{citas.length}</p>
@@ -228,7 +225,6 @@ function DashboardView({ user, citas, setSeccion }) {
         </div>
       </div>
 
-      {/* Próximas */}
       {proximas.length > 0 && (
         <div className="rounded-2xl p-4 shadow-sm mb-4" style={{background:"white", border:`1px solid ${C.soft}`}}>
           <div className="flex items-center justify-between mb-3">
@@ -261,7 +257,6 @@ function DashboardView({ user, citas, setSeccion }) {
         </div>
       )}
 
-      {/* Historial */}
       {pasadas.length > 0 && (
         <div className="rounded-2xl p-4 shadow-sm" style={{background:"white", border:`1px solid ${C.soft}`}}>
           <h3 className="text-sm font-semibold mb-3" style={{color: C.dark}}>Historial reciente</h3>
@@ -291,7 +286,7 @@ function DashboardView({ user, citas, setSeccion }) {
   );
 }
 
-// ── Agendar cita — conectado a Firestore ───────────────────────────────────
+// ── Agendar cita ───────────────────────────────────────────────────────────
 function AgendarCita({ user, onCitaAgendada }) {
   const [paso, setPaso] = useState(1);
   const [medicos, setMedicos] = useState([]);
@@ -306,7 +301,7 @@ function AgendarCita({ user, onCitaAgendada }) {
   const [busqueda, setBusqueda] = useState("");
   const hoy = getToday();
 
-  // Cargar médicos aprobados con horarios de Firestore
+  // Cargar médicos aprobados con horarios por día
   useEffect(() => {
     const fetchMedicos = async () => {
       setCargandoMedicos(true);
@@ -318,35 +313,64 @@ function AgendarCita({ user, onCitaAgendada }) {
       );
       const lista = snap.docs
         .map(d => ({ id: d.id, ...d.data() }))
-        .filter(m => m.horarios && m.horarios.length > 0); // solo médicos con horarios
+        .filter(m => {
+          // Acepta horarios en formato objeto por día (nuevo) o array (legado)
+          if (!m.horarios) return false;
+          if (Array.isArray(m.horarios)) return m.horarios.length > 0;
+          return Object.values(m.horarios).some(arr => arr?.length > 0);
+        });
       setMedicos(lista);
       setCargandoMedicos(false);
     };
     fetchMedicos();
   }, []);
 
-  // Cuando cambia médico o fecha, cargar horas ocupadas
+  // Cargar horas ocupadas cuando cambia médico o fecha
   useEffect(() => {
     if (!medicoSel || !fecha) return;
     const fetchOcupadas = async () => {
       setCargandoHoras(true);
-      const snap = await getDocs(
-        query(collection(db, "citas"),
-          where("medicoId", "==", medicoSel.id),
-          where("fecha", "==", fecha),
-          where("estado", "!=", "cancelada")
-        )
-      );
-      setHorasOcupadas(snap.docs.map(d => d.data().hora));
+      try {
+        const snap = await getDocs(
+          query(collection(db, "citas"),
+            where("medicoId", "==", medicoSel.id),
+            where("fecha", "==", fecha),
+            where("estado", "!=", "cancelada")
+          )
+        );
+        setHorasOcupadas(snap.docs.map(d => d.data().hora));
+      } catch(e) {
+        setHorasOcupadas([]);
+      }
       setCargandoHoras(false);
     };
     fetchOcupadas();
   }, [medicoSel, fecha]);
 
+  // Obtener slots del día seleccionado
+  const getSlotsDelDia = () => {
+    if (!fecha || !medicoSel?.horarios) return [];
+    const horarios = medicoSel.horarios;
+    // Formato nuevo: objeto por día
+    if (!Array.isArray(horarios)) {
+      const diaSemana = DIAS_SEMANA[new Date(fecha + "T00:00:00").getDay()];
+      return horarios[diaSemana] || [];
+    }
+    // Formato legado: array simple
+    return horarios;
+  };
+
   const medicosFiltrados = medicos.filter(m =>
     m.nombre?.toLowerCase().includes(busqueda.toLowerCase()) ||
     m.especialidad?.toLowerCase().includes(busqueda.toLowerCase())
   );
+
+  // Contar horarios totales de un médico (nuevo formato)
+  const contarHorarios = (m) => {
+    if (!m.horarios) return 0;
+    if (Array.isArray(m.horarios)) return m.horarios.length;
+    return Object.values(m.horarios).reduce((s, a) => s + (a?.length || 0), 0);
+  };
 
   const confirmarCita = async () => {
     if (!medicoSel || !fecha || !horaSel) return;
@@ -433,7 +457,7 @@ function AgendarCita({ user, onCitaAgendada }) {
                 style={{background:"white", border:`1px solid ${C.soft}`, color: C.dark}} />
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 {medicosFiltrados.map(medico => (
-                  <button key={medico.id} onClick={() => { setMedicoSel(medico); setPaso(2); setHoraSel(""); }}
+                  <button key={medico.id} onClick={() => { setMedicoSel(medico); setPaso(2); setHoraSel(""); setFecha(""); }}
                     className="text-left p-4 rounded-2xl shadow-sm transition-all"
                     style={{
                       background: medicoSel?.id===medico.id ? C.pale : "white",
@@ -451,7 +475,7 @@ function AgendarCita({ user, onCitaAgendada }) {
                     </div>
                     <div className="flex items-center justify-between">
                       <span className="text-xs" style={{color: C.light}}>
-                        {medico.horarios?.length} horarios disponibles
+                        {contarHorarios(medico)} horarios configurados
                       </span>
                       <span className="text-sm font-bold" style={{color: C.dark}}>
                         {medico.precio ? `$${medico.precio}` : "Consultar precio"}
@@ -493,13 +517,20 @@ function AgendarCita({ user, onCitaAgendada }) {
           {fecha && (
             <div className="mb-4">
               <label className="text-xs font-semibold block mb-2" style={{color: C.dark}}>
-                Horarios disponibles
+                Horarios disponibles — {new Date(fecha+"T00:00:00").toLocaleDateString("es-MX",{weekday:"long"})}
               </label>
               {cargandoHoras ? (
                 <p className="text-xs" style={{color: C.mid}}>Verificando disponibilidad...</p>
+              ) : getSlotsDelDia().length === 0 ? (
+                <div className="rounded-xl p-4 text-center" style={{background: C.pale}}>
+                  <p className="text-sm font-medium" style={{color: C.mid}}>
+                    El médico no atiende los {new Date(fecha+"T00:00:00").toLocaleDateString("es-MX",{weekday:"long"})}s
+                  </p>
+                  <p className="text-xs mt-1" style={{color: C.light}}>Selecciona otra fecha.</p>
+                </div>
               ) : (
                 <div className="grid grid-cols-3 sm:grid-cols-4 gap-2">
-                  {medicoSel.horarios?.map(hora => {
+                  {getSlotsDelDia().map(hora => {
                     const ocupada = horasOcupadas.includes(hora);
                     return (
                       <button key={hora}
@@ -527,7 +558,10 @@ function AgendarCita({ user, onCitaAgendada }) {
               style={{background: C.pale, color: C.dark}}>← Volver</button>
             <button onClick={() => setPaso(3)} disabled={!fecha || !horaSel}
               className="flex-1 py-2.5 rounded-xl text-sm font-medium text-white transition-all"
-              style={{background: fecha && horaSel ? C.dark : C.light, cursor: fecha && horaSel ? "pointer" : "not-allowed"}}>
+              style={{
+                background: fecha && horaSel ? C.dark : C.light,
+                cursor: fecha && horaSel ? "pointer" : "not-allowed"
+              }}>
               Continuar →
             </button>
           </div>
@@ -541,10 +575,10 @@ function AgendarCita({ user, onCitaAgendada }) {
             <h3 className="text-sm font-semibold mb-4" style={{color: C.dark}}>Resumen de tu cita</h3>
             <div className="flex flex-col gap-3">
               {[
-                ["Médico",      medicoSel.nombre],
-                ["Especialidad",medicoSel.especialidad],
-                ["Fecha", new Date(fecha+"T00:00:00").toLocaleDateString("es-MX",{weekday:"long",day:"numeric",month:"long"})],
-                ["Hora",        horaSel],
+                ["Médico",       medicoSel.nombre],
+                ["Especialidad", medicoSel.especialidad],
+                ["Fecha",        new Date(fecha+"T00:00:00").toLocaleDateString("es-MX",{weekday:"long",day:"numeric",month:"long"})],
+                ["Hora",         horaSel],
               ].map(([label, value]) => (
                 <div key={label} className="flex justify-between">
                   <span className="text-xs" style={{color: C.mid}}>{label}</span>
@@ -580,7 +614,7 @@ function AgendarCita({ user, onCitaAgendada }) {
   );
 }
 
-// ── Mis citas — datos reales de Firestore ──────────────────────────────────
+// ── Mis citas ──────────────────────────────────────────────────────────────
 function MisCitas({ citas }) {
   const [filtro, setFiltro] = useState("todas");
   const hoy = getToday();
@@ -601,7 +635,7 @@ function MisCitas({ citas }) {
         <div className="flex rounded-xl overflow-hidden shadow-sm" style={{border:`1px solid ${C.soft}`}}>
           {["todas","proximas","pasadas"].map(f => (
             <button key={f} onClick={() => setFiltro(f)}
-              className="px-3 py-1.5 text-xs font-medium transition-all capitalize"
+              className="px-3 py-1.5 text-xs font-medium transition-all"
               style={{background: filtro===f ? C.dark : "white", color: filtro===f ? "white" : C.mid}}>
               {f==="todas"?"Todas":f==="proximas"?"Próximas":"Pasadas"}
             </button>
@@ -657,7 +691,6 @@ export default function DashboardPaciente({ user }) {
   const [citas, setCitas] = useState([]);
   const navigate = useNavigate();
 
-  // Escuchar citas del paciente en tiempo real
   useEffect(() => {
     if (!user?.uid) return;
     const unsub = onSnapshot(

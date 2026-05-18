@@ -357,6 +357,15 @@ function SeccionHorario({ citas }) {
   const [medicoSel, setMedicoSel] = useState(null);
   const [cargando, setCargando] = useState(true);
   const hoy = new Date().toISOString().split("T")[0];
+  const hoyDia = [
+    "domingo",
+    "lunes",
+    "martes",
+    "miercoles",
+    "jueves",
+    "viernes",
+    "sabado",
+  ][new Date().getDay()];
 
   useEffect(() => {
     const fetchMedicos = async () => {
@@ -396,7 +405,8 @@ function SeccionHorario({ citas }) {
       </main>
     );
 
-  const slots = medicoSel?.horarios || [];
+  const horarios = medicoSel?.horarios || {};
+  const slots = Array.isArray(horarios) ? horarios : horarios[hoyDia] || [];
   const citasDelMedico = citas
     .filter((c) => c.medicoId === medicoSel?.id && c.fecha === hoy)
     .sort((a, b) => a.hora.localeCompare(b.hora));
@@ -446,10 +456,12 @@ function SeccionHorario({ citas }) {
           )}
         </div>
         <div className="bg-white rounded-2xl p-6 shadow-sm">
-          <h2 className="font-bold text-gray-800 mb-4">🕐 Disponibilidad</h2>
+          <h2 className="font-bold text-gray-800 mb-4">
+            🕐 Disponibilidad hoy ({hoyDia})
+          </h2>
           {slots.length === 0 ? (
             <p className="text-gray-400 text-sm">
-              Este médico no tiene horarios asignados aún
+              Este médico no tiene horarios para hoy
             </p>
           ) : (
             <ul className="flex flex-col gap-2">
@@ -607,11 +619,46 @@ function SeccionCobros({ citas, onCobrar }) {
   );
 }
 
+const DIAS = [
+  { id: "lunes", label: "Lunes" },
+  { id: "martes", label: "Martes" },
+  { id: "miercoles", label: "Miércoles" },
+  { id: "jueves", label: "Jueves" },
+  { id: "viernes", label: "Viernes" },
+  { id: "sabado", label: "Sábado" },
+  { id: "domingo", label: "Domingo" },
+];
+
+const HORAS_SUGERIDAS = [
+  "08:00",
+  "08:30",
+  "09:00",
+  "09:30",
+  "10:00",
+  "10:30",
+  "11:00",
+  "11:30",
+  "12:00",
+  "12:30",
+  "13:00",
+  "13:30",
+  "14:00",
+  "14:30",
+  "15:00",
+  "15:30",
+  "16:00",
+  "16:30",
+  "17:00",
+  "17:30",
+  "18:00",
+];
+
 function SeccionGestionarHorarios() {
   const [medicos, setMedicos] = useState([]);
   const [cargando, setCargando] = useState(true);
   const [medicoSel, setMedicoSel] = useState(null);
-  const [horariosTemp, setHorariosTemp] = useState([]);
+  const [horariosPorDia, setHorariosPorDia] = useState({});
+  const [diaActivo, setDiaActivo] = useState("lunes");
   const [nuevaHora, setNuevaHora] = useState("");
   const [guardando, setGuardando] = useState(false);
   const [exito, setExito] = useState("");
@@ -636,60 +683,72 @@ function SeccionGestionarHorarios() {
 
   const seleccionarMedico = (medico) => {
     setMedicoSel(medico);
-    setHorariosTemp(medico.horarios || []);
     setExito("");
+    // Si ya tiene horarios por día los carga, si no inicializa vacío
+    const horariosExistentes =
+      medico.horarios && !Array.isArray(medico.horarios) ? medico.horarios : {};
+    const base = {};
+    DIAS.forEach((d) => {
+      base[d.id] = horariosExistentes[d.id] || [];
+    });
+    setHorariosPorDia(base);
+    setDiaActivo("lunes");
   };
 
   const agregarHora = () => {
-    if (!nuevaHora) return;
-    if (horariosTemp.includes(nuevaHora)) return;
-    setHorariosTemp((prev) => [...prev, nuevaHora].sort());
+    if (!nuevaHora || !nuevaHora.trim()) return;
+    const horaFormateada = nuevaHora.trim();
+    if (horariosPorDia[diaActivo]?.includes(horaFormateada)) return;
+    setHorariosPorDia((prev) => ({
+      ...prev,
+      [diaActivo]: [...(prev[diaActivo] || []), horaFormateada].sort(),
+    }));
     setNuevaHora("");
   };
 
   const quitarHora = (hora) => {
-    setHorariosTemp((prev) => prev.filter((h) => h !== hora));
+    setHorariosPorDia((prev) => ({
+      ...prev,
+      [diaActivo]: prev[diaActivo].filter((h) => h !== hora),
+    }));
+  };
+
+  const agregarSugerida = (hora) => {
+    if (horariosPorDia[diaActivo]?.includes(hora)) return;
+    setHorariosPorDia((prev) => ({
+      ...prev,
+      [diaActivo]: [...(prev[diaActivo] || []), hora].sort(),
+    }));
   };
 
   const guardarHorarios = async () => {
     if (!medicoSel) return;
     setGuardando(true);
+    const precio = parseFloat(horariosPorDia._precio || medicoSel.precio || 0);
+
+    // Separar el precio de los horarios reales
+    const { _precio, ...horariosSinPrecio } = horariosPorDia;
+
     await updateDoc(doc(db, "usuarios", medicoSel.id), {
-      horarios: horariosTemp,
+      horarios: horariosSinPrecio,
+      precio,
     });
     setMedicos((prev) =>
       prev.map((m) =>
-        m.id === medicoSel.id ? { ...m, horarios: horariosTemp } : m,
+        m.id === medicoSel.id
+          ? { ...m, horarios: horariosSinPrecio, precio }
+          : m,
       ),
     );
-    setMedicoSel((prev) => ({ ...prev, horarios: horariosTemp }));
-    setExito("✅ Horarios guardados correctamente");
+    setExito("✅ Horarios y precio guardados correctamente");
     setGuardando(false);
   };
 
-  const HORAS_SUGERIDAS = [
-    "08:00",
-    "08:30",
-    "09:00",
-    "09:30",
-    "10:00",
-    "10:30",
-    "11:00",
-    "11:30",
-    "12:00",
-    "12:30",
-    "13:00",
-    "13:30",
-    "14:00",
-    "14:30",
-    "15:00",
-    "15:30",
-    "16:00",
-    "16:30",
-    "17:00",
-    "17:30",
-    "18:00",
-  ];
+  const totalHorarios = Object.entries(horariosPorDia).reduce(
+    (sum, [key, arr]) =>
+      key === "_precio" ? sum : sum + (Array.isArray(arr) ? arr.length : 0),
+    0,
+  );
 
   return (
     <main className="flex-1 overflow-y-auto p-6">
@@ -697,7 +756,7 @@ function SeccionGestionarHorarios() {
         Gestionar Horarios
       </h1>
       <p className="text-gray-400 text-sm mb-6">
-        Asigna los horarios de atención a cada médico aprobado
+        Asigna los horarios de atención por día para cada médico
       </p>
 
       {cargando ? (
@@ -714,45 +773,54 @@ function SeccionGestionarHorarios() {
             <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-1">
               Médicos aprobados
             </p>
-            {medicos.map((m) => (
-              <button
-                key={m.id}
-                onClick={() => seleccionarMedico(m)}
-                className={`text-left p-4 rounded-2xl border transition-all ${
-                  medicoSel?.id === m.id
-                    ? "bg-blue-50 border-blue-300"
-                    : "bg-white border-gray-100 hover:border-blue-200"
-                }`}
-              >
-                <div className="flex items-center gap-3">
-                  <div className="w-9 h-9 rounded-full bg-blue-100 flex items-center justify-center text-blue-700 font-bold text-sm flex-shrink-0">
-                    {m.nombre?.[0]}
+            {medicos.map((m) => {
+              const total =
+                m.horarios && !Array.isArray(m.horarios)
+                  ? Object.values(m.horarios).reduce(
+                      (s, a) => s + (a?.length || 0),
+                      0,
+                    )
+                  : 0;
+              return (
+                <button
+                  key={m.id}
+                  onClick={() => seleccionarMedico(m)}
+                  className={`text-left p-4 rounded-2xl border transition-all ${
+                    medicoSel?.id === m.id
+                      ? "bg-blue-50 border-blue-300"
+                      : "bg-white border-gray-100 hover:border-blue-200"
+                  }`}
+                >
+                  <div className="flex items-center gap-3">
+                    <div className="w-9 h-9 rounded-full bg-blue-100 flex items-center justify-center text-blue-700 font-bold text-sm flex-shrink-0">
+                      {m.nombre?.[0]}
+                    </div>
+                    <div className="min-w-0">
+                      <p className="font-semibold text-sm text-gray-800 truncate">
+                        {m.nombre}
+                      </p>
+                      <p className="text-xs text-gray-400">{m.especialidad}</p>
+                    </div>
                   </div>
-                  <div className="min-w-0">
-                    <p className="font-semibold text-sm text-gray-800 truncate">
-                      {m.nombre}
-                    </p>
-                    <p className="text-xs text-gray-400">{m.especialidad}</p>
+                  <div className="mt-2">
+                    <span
+                      className={`text-xs px-2 py-0.5 rounded-full ${
+                        total > 0
+                          ? "bg-green-100 text-green-700"
+                          : "bg-amber-100 text-amber-700"
+                      }`}
+                    >
+                      {total > 0
+                        ? `${total} horarios configurados`
+                        : "Sin horarios"}
+                    </span>
                   </div>
-                </div>
-                <div className="mt-2 flex items-center gap-1">
-                  <span
-                    className={`text-xs px-2 py-0.5 rounded-full ${
-                      (m.horarios?.length || 0) > 0
-                        ? "bg-green-100 text-green-700"
-                        : "bg-amber-100 text-amber-700"
-                    }`}
-                  >
-                    {(m.horarios?.length || 0) > 0
-                      ? `${m.horarios.length} horarios`
-                      : "Sin horarios"}
-                  </span>
-                </div>
-              </button>
-            ))}
+                </button>
+              );
+            })}
           </div>
 
-          {/* Editor de horarios */}
+          {/* Editor */}
           <div className="col-span-2">
             {!medicoSel ? (
               <div className="bg-white rounded-2xl p-10 text-center shadow-sm h-full flex items-center justify-center">
@@ -765,7 +833,9 @@ function SeccionGestionarHorarios() {
               </div>
             ) : (
               <div className="bg-white rounded-2xl p-6 shadow-sm">
-                <div className="flex items-center gap-3 mb-6 pb-4 border-b border-gray-100">
+                {/* Header médico */}
+                {/* Header médico */}
+                <div className="flex items-center gap-3 mb-5 pb-4 border-b border-gray-100">
                   <div className="w-12 h-12 rounded-full bg-blue-100 flex items-center justify-center text-blue-700 font-bold text-lg">
                     {medicoSel.nombre?.[0]}
                   </div>
@@ -777,20 +847,76 @@ function SeccionGestionarHorarios() {
                       {medicoSel.especialidad} · {medicoSel.email}
                     </p>
                   </div>
+                  <div className="ml-auto flex items-center gap-3">
+                    <div className="flex items-center gap-2 border border-gray-200 rounded-xl px-3 py-1.5">
+                      <span className="text-xs text-gray-400 font-medium">
+                        Precio consulta
+                      </span>
+                      <span className="text-xs text-gray-400">$</span>
+                      <input
+                        type="number"
+                        min="0"
+                        placeholder="0"
+                        value={horariosPorDia._precio || medicoSel.precio || ""}
+                        onChange={(e) =>
+                          setHorariosPorDia((prev) => ({
+                            ...prev,
+                            _precio: e.target.value,
+                          }))
+                        }
+                        className="w-20 text-sm font-bold text-gray-800 outline-none"
+                      />
+                      <span className="text-xs text-gray-400">MXN</span>
+                    </div>
+                    <span className="text-xs bg-blue-50 text-blue-700 px-3 py-1 rounded-full font-medium">
+                      {totalHorarios} horarios en total
+                    </span>
+                  </div>
                 </div>
 
-                {/* Horarios actuales */}
-                <div className="mb-5">
-                  <p className="text-sm font-semibold text-gray-700 mb-3">
-                    Horarios asignados
+                {/* Tabs de días */}
+                <div className="flex gap-1 mb-5 flex-wrap">
+                  {DIAS.map((dia) => {
+                    const count = horariosPorDia[dia.id]?.length || 0;
+                    return (
+                      <button
+                        key={dia.id}
+                        onClick={() => setDiaActivo(dia.id)}
+                        className={`px-3 py-1.5 rounded-xl text-xs font-medium transition-all relative ${
+                          diaActivo === dia.id
+                            ? "bg-[#2f4157] text-white"
+                            : "bg-gray-100 text-gray-600 hover:bg-gray-200"
+                        }`}
+                      >
+                        {dia.label}
+                        {count > 0 && (
+                          <span
+                            className={`ml-1.5 text-xs px-1.5 py-0.5 rounded-full ${
+                              diaActivo === dia.id
+                                ? "bg-white/20 text-white"
+                                : "bg-blue-100 text-blue-700"
+                            }`}
+                          >
+                            {count}
+                          </span>
+                        )}
+                      </button>
+                    );
+                  })}
+                </div>
+
+                {/* Horarios del día activo */}
+                <div className="mb-4">
+                  <p className="text-sm font-semibold text-gray-700 mb-2">
+                    Horarios del {DIAS.find((d) => d.id === diaActivo)?.label}
                   </p>
-                  {horariosTemp.length === 0 ? (
-                    <p className="text-sm text-gray-300 italic">
-                      Sin horarios asignados
+                  {(horariosPorDia[diaActivo]?.length || 0) === 0 ? (
+                    <p className="text-sm text-gray-300 italic mb-3">
+                      Sin horarios para este día
                     </p>
                   ) : (
-                    <div className="flex flex-wrap gap-2">
-                      {horariosTemp.map((hora) => (
+                    <div className="flex flex-wrap gap-2 mb-3">
+                      {horariosPorDia[diaActivo].map((hora) => (
                         <span
                           key={hora}
                           className="flex items-center gap-1.5 bg-blue-50 border border-blue-200 text-blue-700 text-sm px-3 py-1.5 rounded-xl"
@@ -818,6 +944,10 @@ function SeccionGestionarHorarios() {
                       type="time"
                       value={nuevaHora}
                       onChange={(e) => setNuevaHora(e.target.value)}
+                      onBlur={(e) => setNuevaHora(e.target.value)}
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter") agregarHora();
+                      }}
                       className="border border-gray-200 rounded-xl px-3 py-2 text-sm outline-none focus:border-blue-400"
                     />
                     <button
@@ -830,19 +960,17 @@ function SeccionGestionarHorarios() {
                 </div>
 
                 {/* Horas sugeridas */}
-                <div className="mb-6">
+                <div className="mb-5">
                   <p className="text-xs text-gray-400 mb-2">
-                    Horarios sugeridos (clic para agregar)
+                    Sugeridos (clic para agregar)
                   </p>
                   <div className="flex flex-wrap gap-1.5">
                     {HORAS_SUGERIDAS.filter(
-                      (h) => !horariosTemp.includes(h),
+                      (h) => !horariosPorDia[diaActivo]?.includes(h),
                     ).map((hora) => (
                       <button
                         key={hora}
-                        onClick={() =>
-                          setHorariosTemp((prev) => [...prev, hora].sort())
-                        }
+                        onClick={() => agregarSugerida(hora)}
                         className="text-xs px-2.5 py-1 rounded-lg border border-gray-200 text-gray-500 hover:border-blue-400 hover:text-blue-600 hover:bg-blue-50 transition"
                       >
                         {hora}
