@@ -131,7 +131,7 @@ export default function CitasMensuales() {
                             <table style={styles.table}>
                                 <thead>
                                     <tr>
-                                        {["Fecha", "Hora", "Paciente", "Médico", "Estado", "Pagado"].map((h) => (
+                                        {["Fecha", "Hora", "Paciente", "Médico", "Estado",].map((h) => (
                                             <th key={h} style={styles.th}>{h}</th>
                                         ))}
                                     </tr>
@@ -150,11 +150,7 @@ export default function CitasMensuales() {
                                                     {c.estado ?? "—"}
                                                 </span>
                                             </td>
-                                            <td style={styles.td}>
-                                                <span style={{ ...styles.badge, ...(c.pagado ? styles.badgeOk : styles.badgeNo) }}>
-                                                    {c.pagado ? "Sí" : "No"}
-                                                </span>
-                                            </td>
+                                            
                                         </tr>
                                     ))}
                                 </tbody>
