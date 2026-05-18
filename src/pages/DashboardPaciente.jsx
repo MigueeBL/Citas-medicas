@@ -8,17 +8,23 @@ import {
 import { useNavigate } from "react-router-dom";
 import logo from "../assets/logo.png";
 
+/* ─────────────────────────────────────────────
+   PALETA & HELPERS
+───────────────────────────────────────────── */
 const C = {
-  dark:  "#2f4157",
-  mid:   "#567c8e",
-  light: "#a2c1d1",
-  soft:  "#c7d9e5",
-  pale:  "#e3ecf2",
-  bg:    "#f3f6f9",
+  teal:    "#0d9488",
+  tealDk:  "#0f766e",
+  tealLt:  "#ccfbf1",
+  tealPale:"#f0fdfa",
+  slate:   "#1e293b",
+  muted:   "#64748b",
+  border:  "#e2e8f0",
+  bg:      "#f8fafc",
+  white:   "#ffffff",
+  amber:   "#f59e0b",
+  red:     "#ef4444",
+  green:   "#10b981",
 };
-
-const MESES = ["Enero","Febrero","Marzo","Abril","Mayo","Junio","Julio",
-               "Agosto","Septiembre","Octubre","Noviembre","Diciembre"];
 
 const DIAS_SEMANA = ["domingo","lunes","martes","miercoles","jueves","viernes","sabado"];
 
@@ -27,59 +33,85 @@ function getToday() {
   return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}-${String(d.getDate()).padStart(2,"0")}`;
 }
 
-function avatarColor(str) {
-  const colors = [C.dark, C.mid, "#3d6b7d", "#4a7a8a", "#2a5068", "#1e3a4f"];
-  return colors[(str?.charCodeAt(0)||0) % colors.length];
+function initials(nombre = "") {
+  return nombre.split(" ").filter(w => w.length > 1).map(w => w[0]).join("").slice(0,2).toUpperCase() || "??";
 }
 
+const AVATAR_COLORS = ["#0d9488","#0284c7","#7c3aed","#db2777","#ea580c","#16a34a"];
+function avatarBg(str = "") { return AVATAR_COLORS[(str.charCodeAt(0) || 0) % AVATAR_COLORS.length]; }
+
+function contarHorarios(m) {
+  if (!m.horarios) return 0;
+  if (Array.isArray(m.horarios)) return m.horarios.length;
+  return Object.values(m.horarios).reduce((s, a) => s + (a?.length || 0), 0);
+}
+
+/* ─────────────────────────────────────────────
+   BADGES
+───────────────────────────────────────────── */
 function EstadoBadge({ estado }) {
-  if (estado === "confirmada") return <span className="text-xs px-3 py-1 rounded-full font-medium whitespace-nowrap" style={{background: C.pale, color: C.dark}}>Confirmada</span>;
-  if (estado === "pendiente")  return <span className="text-xs px-3 py-1 rounded-full font-medium whitespace-nowrap bg-amber-100 text-amber-700">Pendiente</span>;
-  if (estado === "cobrada")    return <span className="text-xs px-3 py-1 rounded-full font-medium whitespace-nowrap bg-green-100 text-green-700">Cobrada</span>;
-  return <span className="text-xs px-3 py-1 rounded-full font-medium whitespace-nowrap bg-red-100 text-red-600">Cancelada</span>;
+  const cfg = {
+    confirmada: { bg:"#dcfce7", color:"#166534", label:"Confirmada",   dot:"#16a34a" },
+    pendiente:  { bg:"#fef9c3", color:"#854d0e", label:"Pendiente",    dot:"#ca8a04" },
+    cobrada:    { bg:"#dbeafe", color:"#1e40af", label:"Completada",   dot:"#3b82f6" },
+    cancelada:  { bg:"#fee2e2", color:"#991b1b", label:"Cancelada",    dot:"#ef4444" },
+  };
+  const s = cfg[estado] || { bg:"#f1f5f9", color:"#475569", label:estado, dot:"#94a3b8" };
+  return (
+    <span className="inline-flex items-center gap-1.5 text-xs font-semibold px-2.5 py-1 rounded-full whitespace-nowrap"
+      style={{ background: s.bg, color: s.color }}>
+      <span className="w-1.5 h-1.5 rounded-full flex-shrink-0" style={{ background: s.dot }} />
+      {s.label}
+    </span>
+  );
 }
 
-// ──  Cancelar citas────────────────────────────────────────────────────────
+/* ─────────────────────────────────────────────
+   AVATAR
+───────────────────────────────────────────── */
+function Avatar({ nombre, size = 40 }) {
+  return (
+    <div className="rounded-full flex items-center justify-center text-white font-bold flex-shrink-0"
+      style={{ width: size, height: size, fontSize: size * 0.35, background: avatarBg(nombre) }}>
+      {initials(nombre)}
+    </div>
+  );
+}
+
+/* ─────────────────────────────────────────────
+   MODAL CANCELAR
+───────────────────────────────────────────── */
 function ModalCancelar({ cita, onConfirmar, onCerrar, cancelando }) {
   if (!cita) return null;
   const fecha = new Date(cita.fecha + "T00:00:00");
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4"
-      style={{background: "rgba(47,65,87,0.45)", backdropFilter: "blur(4px)"}}>
-      <div className="w-full max-w-sm rounded-2xl shadow-2xl p-6" style={{background: "white"}}>
-        <div className="w-12 h-12 rounded-full flex items-center justify-center text-2xl mx-auto mb-4"
-          style={{background: "#fef2f2"}}>
-          ⚠️
-        </div>
-        <h3 className="text-base font-bold text-center mb-1" style={{color: C.dark}}>
-          ¿Cancelar esta cita?
-        </h3>
-        <p className="text-xs text-center mb-4" style={{color: C.mid}}>
-          No se pudo hacer la cancelación de la cita.
-        </p>
-        <div className="rounded-xl p-3 mb-5" style={{background: C.bg, border: `1px solid ${C.soft}`}}>
-          <div className="flex items-center gap-3">
-            <div className="w-9 h-9 rounded-full flex items-center justify-center text-white text-xs font-bold flex-shrink-0"
-              style={{background: avatarColor(cita.medicoNombre)}}>
-              {cita.medicoNombre?.split(" ").filter(w=>w.length>2).map(w=>w[0]).join("").slice(0,2)}
-            </div>
-            <div>
-              <p className="text-sm font-semibold" style={{color: C.dark}}>{cita.medicoNombre}</p>
-              <p className="text-xs" style={{color: C.mid}}>
-                {fecha.toLocaleDateString("es-MX",{day:"numeric",month:"long"})} · {cita.hora}
-              </p>
-            </div>
+    <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4"
+      style={{ background: "rgba(15,23,42,0.55)", backdropFilter: "blur(6px)" }}>
+      <div className="w-full sm:max-w-sm rounded-t-3xl sm:rounded-3xl p-6 shadow-2xl animate-slide-up"
+        style={{ background: C.white }}>
+        <div className="w-12 h-12 rounded-2xl flex items-center justify-center text-2xl mx-auto mb-4"
+          style={{ background: "#fef2f2" }}>⚠️</div>
+        <h3 className="text-lg font-bold text-center mb-1" style={{ color: C.slate }}>¿Cancelar esta cita?</h3>
+        <p className="text-sm text-center mb-5" style={{ color: C.muted }}>Esta acción no se puede deshacer.</p>
+        <div className="rounded-2xl p-4 mb-5 flex items-center gap-3"
+          style={{ background: C.tealPale, border: `1px solid ${C.tealLt}` }}>
+          <Avatar nombre={cita.medicoNombre} size={44} />
+          <div>
+            <p className="font-semibold text-sm" style={{ color: C.slate }}>{cita.medicoNombre}</p>
+            <p className="text-xs mt-0.5" style={{ color: C.muted }}>
+              {fecha.toLocaleDateString("es-MX", { day:"numeric", month:"long" })} · {cita.hora}
+            </p>
           </div>
         </div>
         <div className="flex gap-3">
           <button onClick={onCerrar} disabled={cancelando}
-            className="flex-1 py-2.5 rounded-xl text-sm font-medium"
-            style={{background: C.pale, color: C.dark}}>
+            className="flex-1 py-3 rounded-2xl text-sm font-semibold transition-all"
+            style={{ background: C.bg, color: C.slate, border: `1px solid ${C.border}` }}>
             Volver
           </button>
           <button onClick={onConfirmar} disabled={cancelando}
-            className="flex-1 py-2.5 rounded-xl text-sm font-medium text-white"
-            style={{background: cancelando ? C.light : "#ef4444", cursor: cancelando ? "not-allowed" : "pointer"}}>
+            className="flex-1 py-3 rounded-2xl text-sm font-semibold text-white transition-all"
+            style={{ background: cancelando ? "#fca5a5" : C.red }}>
             {cancelando ? "Cancelando..." : "Sí, cancelar"}
           </button>
         </div>
@@ -88,93 +120,203 @@ function ModalCancelar({ cita, onConfirmar, onCerrar, cancelando }) {
   );
 }
 
-// ── Sidebar desktop ────────────────────────────────────────────────────────
+/* ─────────────────────────────────────────────
+   SIDEBAR DESKTOP
+───────────────────────────────────────────── */
 function Sidebar({ seccion, setSeccion, user, onLogout }) {
   const items = [
-    { id: "dashboard", label: "Dashboard",    icon: "⊞" },
+    { id: "dashboard", label: "Inicio",       icon: "🏠" },
     { id: "agendar",   label: "Agendar cita", icon: "➕" },
-    { id: "miscitas",  label: "Mis citas",    icon: "📅" },
+    { id: "miscitas",  label: "Mis citas",    icon: "📋" },
   ];
   return (
-    <aside className="hidden md:flex w-56 min-h-screen flex-col flex-shrink-0" style={{background: C.dark}}>
-      <div className="px-5 py-5">
-        <div className="flex items-center gap-2">
-          <img src={logo} alt="Logo" className="w-9 h-9 object-contain" />
-          <p className="font-semibold text-lg leading-none text-white">Citas Médicas</p>
+    <aside className="hidden md:flex w-64 min-h-screen flex-col flex-shrink-0 relative"
+      style={{ background: C.white, borderRight: `1px solid ${C.border}` }}>
+
+      {/* Logo */}
+      <div className="px-6 py-6 flex items-center gap-3">
+        <div className="w-10 h-10 rounded-2xl flex items-center justify-center shadow-sm"
+          style={{ background: C.teal }}>
+          <img src={logo} alt="Logo" className="w-6 h-6 object-contain" style={{ filter:"brightness(10)" }} />
+        </div>
+        <div>
+          <p className="font-bold text-sm leading-none" style={{ color: C.slate }}>MediAsist</p>
+          <p className="text-xs mt-0.5" style={{ color: C.muted }}>Portal paciente</p>
         </div>
       </div>
-      <div className="px-5 py-4 flex flex-col items-center gap-2" style={{borderBottom:`1px solid ${C.mid}40`}}>
-        <div className="w-14 h-14 rounded-full flex items-center justify-center text-white text-lg font-bold border-2"
-          style={{background: C.mid, borderColor: C.light}}>
-          {user?.nombre?.split(" ").map(n=>n[0]).join("").slice(0,2).toUpperCase()||"PA"}
-        </div>
-        <div className="text-center">
-          <p className="font-semibold text-sm text-white">{user?.nombre||"Paciente"}</p>
-          <p className="text-xs" style={{color: C.light}}>Paciente</p>
+
+      {/* Perfil */}
+      <div className="mx-4 mb-6 p-4 rounded-2xl flex items-center gap-3"
+        style={{ background: C.tealPale, border: `1px solid ${C.tealLt}` }}>
+        <Avatar nombre={user?.nombre} size={44} />
+        <div className="min-w-0">
+          <p className="font-bold text-sm truncate" style={{ color: C.slate }}>{user?.nombre || "Paciente"}</p>
+          <p className="text-xs mt-0.5 font-medium" style={{ color: C.teal }}>Paciente</p>
         </div>
       </div>
-      <nav className="flex-1 px-3 py-4 flex flex-col gap-1">
-        {items.map(item => (
-          <button key={item.id} onClick={() => setSeccion(item.id)}
-            className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all text-left"
-            style={{background: seccion===item.id ? C.mid : "transparent", color: seccion===item.id ? "white" : C.soft}}>
-            <span>{item.icon}</span>{item.label}
-          </button>
-        ))}
+
+      {/* Nav */}
+      <nav className="flex-1 px-4 flex flex-col gap-1">
+        {items.map(item => {
+          const active = seccion === item.id;
+          return (
+            <button key={item.id} onClick={() => setSeccion(item.id)}
+              className="w-full flex items-center gap-3 px-4 py-3 rounded-2xl text-sm font-semibold text-left transition-all"
+              style={{
+                background: active ? C.teal : "transparent",
+                color: active ? C.white : C.muted,
+              }}>
+              <span className="text-base">{item.icon}</span>
+              {item.label}
+              {active && <span className="ml-auto w-1.5 h-1.5 rounded-full bg-white/60" />}
+            </button>
+          );
+        })}
       </nav>
-      <div className="px-3 pb-5 pt-3" style={{borderTop:`1px solid ${C.mid}40`}}>
-        <button onClick={onLogout} className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm transition-all" style={{color: C.light}}>
-          🚪 Cerrar sesión
+
+      {/* Logout */}
+      <div className="px-4 pb-6 pt-4" style={{ borderTop: `1px solid ${C.border}` }}>
+        <button onClick={onLogout}
+          className="w-full flex items-center gap-3 px-4 py-3 rounded-2xl text-sm font-semibold transition-all hover:bg-red-50"
+          style={{ color: "#ef4444" }}>
+          <span>🚪</span> Cerrar sesión
         </button>
       </div>
     </aside>
   );
 }
 
-// ── Bottom nav móvil ───────────────────────────────────────────────────────
+/* ─────────────────────────────────────────────
+   BOTTOM NAV MÓVIL
+───────────────────────────────────────────── */
 function BottomNav({ seccion, setSeccion, onLogout }) {
   const items = [
-    { id: "dashboard", label: "Inicio",   icon: "⊞" },
+    { id: "dashboard", label: "Inicio",   icon: "🏠" },
     { id: "agendar",   label: "Agendar",  icon: "➕" },
-    { id: "miscitas",  label: "Mis citas",icon: "📅" },
+    { id: "miscitas",  label: "Mis citas",icon: "📋" },
+    { id: "__logout",  label: "Salir",    icon: "🚪", action: onLogout },
   ];
   return (
     <nav className="md:hidden fixed bottom-0 left-0 right-0 z-50 flex"
-      style={{background: "white", borderTop:`1px solid ${C.soft}`}}>
-      {items.map(item => (
-        <button key={item.id} onClick={() => setSeccion(item.id)}
-          className="flex-1 flex flex-col items-center py-2 gap-0.5 text-xs font-medium transition-all"
-          style={{color: seccion===item.id ? C.dark : C.light}}>
-          <span className="text-lg leading-none">{item.icon}</span>
-          <span>{item.label}</span>
-        </button>
-      ))}
-      <button onClick={onLogout} className="flex-1 flex flex-col items-center py-2 gap-0.5 text-xs font-medium" style={{color: C.light}}>
-        <span className="text-lg leading-none">🚪</span>
-        <span>Salir</span>
-      </button>
+      style={{
+        background: C.white,
+        borderTop: `1px solid ${C.border}`,
+        paddingBottom: "env(safe-area-inset-bottom)",
+      }}>
+      {items.map(item => {
+        const active = seccion === item.id;
+        const fn = item.action || (() => setSeccion(item.id));
+        return (
+          <button key={item.id} onClick={fn}
+            className="flex-1 flex flex-col items-center py-2.5 gap-1 text-xs font-semibold transition-all"
+            style={{ color: active ? C.teal : C.muted }}>
+            <span className="text-xl leading-none">{item.icon}</span>
+            <span style={{ fontSize: 10 }}>{item.label}</span>
+            {active && <span className="w-4 h-0.5 rounded-full" style={{ background: C.teal }} />}
+          </button>
+        );
+      })}
     </nav>
   );
 }
 
-// ── Header móvil ───────────────────────────────────────────────────────────
+/* ─────────────────────────────────────────────
+   HEADER MÓVIL
+───────────────────────────────────────────── */
 function HeaderMovil({ user, seccion }) {
-  const titulos = { dashboard:"Dashboard", agendar:"Agendar cita", miscitas:"Mis citas" };
+  const titulos = { dashboard:"Inicio", agendar:"Agendar cita", miscitas:"Mis citas" };
   return (
-    <div className="md:hidden flex items-center justify-between px-4 py-3 sticky top-0 z-40"
-      style={{background:"white", borderBottom:`1px solid ${C.soft}`}}>
-      <div className="flex items-center gap-2">
-        <img src={logo} alt="Logo" className="w-7 h-7 object-contain" />
-        <span className="font-semibold text-sm" style={{color: C.dark}}>{titulos[seccion]}</span>
+    <header className="md:hidden sticky top-0 z-40 flex items-center justify-between px-4 py-3"
+      style={{ background: C.white, borderBottom: `1px solid ${C.border}` }}>
+      <div className="flex items-center gap-2.5">
+        <div className="w-8 h-8 rounded-xl flex items-center justify-center"
+          style={{ background: C.teal }}>
+          <img src={logo} alt="Logo" className="w-5 h-5 object-contain" style={{ filter:"brightness(10)" }} />
+        </div>
+        <span className="font-bold text-sm" style={{ color: C.slate }}>{titulos[seccion]}</span>
       </div>
-      <div className="w-8 h-8 rounded-full flex items-center justify-center text-white text-xs font-bold" style={{background: C.mid}}>
-        {user?.nombre?.split(" ").map(n=>n[0]).join("").slice(0,2).toUpperCase()||"PA"}
+      <Avatar nombre={user?.nombre} size={34} />
+    </header>
+  );
+}
+
+/* ─────────────────────────────────────────────
+   STAT CARD
+───────────────────────────────────────────── */
+function StatCard({ icon, label, value, accent, onClick }) {
+  return (
+    <button onClick={onClick}
+      className="rounded-2xl p-4 flex items-center gap-4 text-left w-full transition-all hover:shadow-md active:scale-95"
+      style={{ background: C.white, border: `1px solid ${C.border}` }}>
+      <div className="w-12 h-12 rounded-2xl flex items-center justify-center text-2xl flex-shrink-0"
+        style={{ background: accent + "18" }}>
+        {icon}
+      </div>
+      <div>
+        <p className="text-2xl font-bold leading-none" style={{ color: C.slate }}>{value}</p>
+        <p className="text-xs mt-1 font-medium" style={{ color: C.muted }}>{label}</p>
+      </div>
+    </button>
+  );
+}
+
+/* ─────────────────────────────────────────────
+   CITA CARD (reusable)
+───────────────────────────────────────────── */
+function CitaCard({ cita, onCancelar, showCancel }) {
+  const fecha = new Date(cita.fecha + "T00:00:00");
+  const hoy = getToday();
+  const esHoy = cita.fecha === hoy;
+  return (
+    <div className="rounded-2xl p-4 transition-all hover:shadow-sm"
+      style={{ background: C.white, border: `1px solid ${esHoy ? C.teal+"40" : C.border}` }}>
+      {esHoy && (
+        <div className="inline-flex items-center gap-1.5 text-xs font-bold px-2.5 py-1 rounded-full mb-3"
+          style={{ background: C.tealLt, color: C.tealDk }}>
+          <span className="w-1.5 h-1.5 rounded-full bg-teal-500 animate-pulse" />
+          Hoy
+        </div>
+      )}
+      <div className="flex items-center gap-3">
+        <Avatar nombre={cita.medicoNombre} size={44} />
+        <div className="flex-1 min-w-0">
+          <p className="font-bold text-sm truncate" style={{ color: C.slate }}>{cita.medicoNombre}</p>
+          <p className="text-xs mt-0.5" style={{ color: C.muted }}>{cita.especialidad}</p>
+        </div>
+        <EstadoBadge estado={cita.estado} />
+      </div>
+
+      <div className="mt-3 pt-3 flex items-center justify-between flex-wrap gap-2"
+        style={{ borderTop: `1px solid ${C.border}` }}>
+        <div className="flex items-center gap-3 flex-wrap">
+          <span className="flex items-center gap-1.5 text-xs font-medium" style={{ color: C.muted }}>
+            <span>📅</span>
+            {fecha.toLocaleDateString("es-MX", { day:"numeric", month:"long", year:"numeric" })}
+          </span>
+          <span className="flex items-center gap-1.5 text-xs font-medium" style={{ color: C.muted }}>
+            <span>🕐</span>{cita.hora}
+          </span>
+        </div>
+        <div className="flex items-center gap-2">
+          {cita.monto > 0 && (
+            <span className="text-sm font-bold" style={{ color: C.slate }}>${cita.monto} MXN</span>
+          )}
+          {showCancel && onCancelar && (
+            <button onClick={() => onCancelar(cita)}
+              className="text-xs px-3 py-1.5 rounded-xl font-semibold transition-all"
+              style={{ background:"#fef2f2", color: C.red, border:"1px solid #fecaca" }}>
+              Cancelar
+            </button>
+          )}
+        </div>
       </div>
     </div>
   );
 }
 
-// ── Dashboard view ─────────────────────────────────────────────────────────
+/* ─────────────────────────────────────────────
+   DASHBOARD VIEW
+───────────────────────────────────────────── */
 function DashboardView({ user, citas, setSeccion }) {
   const hoy = getToday();
   const proximas = citas.filter(c => c.fecha >= hoy && c.estado !== "cancelada")
@@ -186,142 +328,117 @@ function DashboardView({ user, citas, setSeccion }) {
 
   function diasRestantes(fecha) {
     const hoyD = new Date(); hoyD.setHours(0,0,0,0);
-    const diff = Math.round((new Date(fecha+"T00:00:00") - hoyD) / 86400000);
-    if (diff===0) return "Hoy"; if (diff===1) return "Mañana"; return `En ${diff} días`;
+    const diff = Math.round((new Date(fecha + "T00:00:00") - hoyD) / 86400000);
+    if (diff === 0) return "Hoy 🎯";
+    if (diff === 1) return "Mañana ⏰";
+    return `En ${diff} días`;
   }
 
   return (
-    <div className="flex-1 p-4 md:p-6 overflow-y-auto pb-20 md:pb-6" style={{background: C.bg}}>
-      <div className="hidden md:flex items-center justify-between mb-6">
-        <div>
-          <h1 className="text-2xl font-bold" style={{color: C.dark}}>
-            ¡Hola, {user?.nombre?.split(" ")[0]||"Paciente"}! 👋
+    <div className="flex-1 overflow-y-auto pb-24 md:pb-8" style={{ background: C.bg }}>
+
+      {/* Hero bienvenida */}
+      <div className="px-4 md:px-8 pt-6 pb-4">
+        <div className="rounded-3xl p-6 relative overflow-hidden"
+          style={{ background: `linear-gradient(135deg, ${C.teal} 0%, ${C.tealDk} 100%)` }}>
+          {/* Decorative circles */}
+          <div className="absolute -top-8 -right-8 w-32 h-32 rounded-full opacity-20"
+            style={{ background: "white" }} />
+          <div className="absolute -bottom-6 -right-2 w-20 h-20 rounded-full opacity-10"
+            style={{ background: "white" }} />
+
+          <p className="text-sm font-semibold text-white/70 mb-1">
+            {fechaHoy.toLocaleDateString("es-MX", { weekday:"long", day:"numeric", month:"long" })}
+          </p>
+          <h1 className="text-2xl font-bold text-white mb-1">
+            ¡Hola, {user?.nombre?.split(" ")[0] || "Paciente"}! 👋
           </h1>
-          <p className="text-sm mt-0.5" style={{color: C.mid}}>Aquí tienes un resumen de tus citas médicas.</p>
-        </div>
-        <div className="flex items-center gap-2 rounded-xl px-3 py-2 shadow-sm"
-          style={{background:"white", border:`1px solid ${C.soft}`}}>
-          <span className="text-sm">📅</span>
-          <div>
-            <p className="text-xs font-semibold" style={{color: C.dark}}>
-              {fechaHoy.toLocaleDateString("es-MX",{day:"numeric",month:"long",year:"numeric"})}
-            </p>
-            <p className="text-xs" style={{color: C.light}}>
-              {fechaHoy.toLocaleDateString("es-MX",{weekday:"long"})}
-            </p>
-          </div>
-        </div>
-      </div>
+          <p className="text-sm text-white/80">Bienvenido a tu portal de citas médicas.</p>
 
-      <div className="md:hidden mb-4">
-        <h1 className="text-lg font-bold" style={{color: C.dark}}>
-          ¡Hola, {user?.nombre?.split(" ")[0]||"Paciente"}! 👋
-        </h1>
-        <p className="text-xs" style={{color: C.mid}}>
-          {fechaHoy.toLocaleDateString("es-MX",{weekday:"long",day:"numeric",month:"long"})}
-        </p>
-      </div>
-
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6">
-        <div className="rounded-2xl p-4 shadow-sm sm:col-span-2" style={{background:"white", border:`1px solid ${C.soft}`}}>
-          <p className="text-xs font-medium mb-3" style={{color: C.mid}}>📋 Próxima cita</p>
-          {proxima ? (
-            <div className="flex items-center gap-4">
-              <div className="w-12 h-12 rounded-xl flex items-center justify-center text-white text-sm font-bold flex-shrink-0"
-                style={{background: avatarColor(proxima.medicoNombre)}}>
-                {proxima.medicoNombre?.split(" ").filter(w=>w.length>2).map(w=>w[0]).join("").slice(0,2).toUpperCase()}
-              </div>
+          {proxima && (
+            <div className="mt-4 rounded-2xl p-3 flex items-center gap-3"
+              style={{ background: "rgba(255,255,255,0.15)" }}>
+              <div className="text-2xl">📅</div>
               <div className="flex-1 min-w-0">
-                <p className="font-bold text-base truncate" style={{color: C.dark}}>{proxima.medicoNombre}</p>
-                <p className="text-xs" style={{color: C.mid}}>{proxima.especialidad}</p>
-                <p className="text-xs font-medium mt-1" style={{color: C.dark}}>
-                  {new Date(proxima.fecha+"T00:00:00").toLocaleDateString("es-MX",{day:"numeric",month:"long"})} · {proxima.hora}
+                <p className="text-xs text-white/70 font-medium">Próxima cita</p>
+                <p className="text-sm font-bold text-white truncate">{proxima.medicoNombre}</p>
+                <p className="text-xs text-white/80">
+                  {new Date(proxima.fecha+"T00:00:00").toLocaleDateString("es-MX",{day:"numeric",month:"short"})} · {proxima.hora}
                 </p>
               </div>
-              <div className="text-right flex-shrink-0">
-                <span className="text-xs px-2 py-1 rounded-full font-medium" style={{background: C.pale, color: C.mid}}>
-                  {diasRestantes(proxima.fecha)}
-                </span>
-                {proxima.monto > 0 && <p className="text-xs mt-1" style={{color: C.light}}>${proxima.monto} MXN</p>}
-              </div>
-            </div>
-          ) : (
-            <div className="flex items-center gap-3">
-              <p className="text-sm" style={{color: C.light}}>No tienes citas próximas.</p>
-              <button onClick={() => setSeccion("agendar")}
-                className="text-xs font-medium px-3 py-1.5 rounded-xl text-white"
-                style={{background: C.mid}}>
-                Agendar ahora →
-              </button>
+              <span className="text-xs font-bold px-2.5 py-1.5 rounded-xl whitespace-nowrap"
+                style={{ background:"rgba(255,255,255,0.25)", color:"white" }}>
+                {diasRestantes(proxima.fecha)}
+              </span>
             </div>
           )}
         </div>
+      </div>
 
-        <div className="rounded-2xl p-4 shadow-sm" style={{background:"white", border:`1px solid ${C.soft}`}}>
-          <p className="text-xs" style={{color: C.mid}}>Citas totales</p>
-          <p className="text-3xl font-bold my-1" style={{color: C.dark}}>{citas.length}</p>
-          <div className="flex gap-2 mt-2 flex-wrap">
-            <span className="text-xs px-2 py-0.5 rounded-full" style={{background: C.pale, color: C.dark}}>
-              {proximas.length} próximas
-            </span>
-            <span className="text-xs px-2 py-0.5 rounded-full bg-gray-100 text-gray-500">
-              {pasadas.length} pasadas
-            </span>
-          </div>
-          <button onClick={() => setSeccion("agendar")} className="mt-3 text-xs font-medium" style={{color: C.mid}}>
-            + Agendar cita
-          </button>
+      {/* Stats */}
+      <div className="px-4 md:px-8 mb-6">
+        <div className="grid grid-cols-3 gap-3">
+          <StatCard icon="📋" label="Total citas"   value={citas.length}    accent={C.teal}  />
+          <StatCard icon="⏰" label="Próximas"      value={proximas.length} accent="#f59e0b" onClick={() => setSeccion("miscitas")} />
+          <StatCard icon="✅" label="Completadas"   value={pasadas.length}  accent={C.green} onClick={() => setSeccion("miscitas")} />
         </div>
       </div>
 
-      {proximas.length > 0 && (
-        <div className="rounded-2xl p-4 shadow-sm mb-4" style={{background:"white", border:`1px solid ${C.soft}`}}>
-          <div className="flex items-center justify-between mb-3">
-            <h3 className="text-sm font-semibold" style={{color: C.dark}}>Próximas citas</h3>
-            <button onClick={() => setSeccion("miscitas")} className="text-xs" style={{color: C.mid}}>Ver todas →</button>
-          </div>
-          <div className="flex flex-col gap-3">
-            {proximas.slice(0,3).map(cita => {
-              const fecha = new Date(cita.fecha+"T00:00:00");
-              return (
-                <div key={cita.id} className="flex items-center gap-3 p-3 rounded-xl" style={{background: C.bg}}>
-                  <div className="text-center flex-shrink-0 w-10">
-                    <p className="text-xs font-bold uppercase" style={{color: C.mid}}>{MESES[fecha.getMonth()].slice(0,3)}</p>
-                    <p className="text-lg font-bold leading-none" style={{color: C.dark}}>{fecha.getDate()}</p>
-                  </div>
-                  <div className="w-px h-8 flex-shrink-0" style={{background: C.soft}}></div>
-                  <div className="w-8 h-8 rounded-full flex items-center justify-center text-white text-xs font-bold flex-shrink-0"
-                    style={{background: avatarColor(cita.medicoNombre)}}>
-                    {cita.medicoNombre?.split(" ").filter(w=>w.length>2).map(w=>w[0]).join("").slice(0,2)}
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <p className="text-xs font-medium truncate" style={{color: C.dark}}>{cita.medicoNombre}</p>
-                    <p className="text-xs" style={{color: C.light}}>{cita.especialidad} · {cita.hora}</p>
-                  </div>
-                  <EstadoBadge estado={cita.estado} />
-                </div>
-              );
-            })}
+      {/* CTA Agendar */}
+      {proximas.length === 0 && (
+        <div className="px-4 md:px-8 mb-6">
+          <div className="rounded-3xl p-5 flex items-center gap-4"
+            style={{ background: C.tealPale, border: `1.5px dashed ${C.tealLt}` }}>
+            <span className="text-4xl">🩺</span>
+            <div className="flex-1">
+              <p className="font-bold text-sm" style={{ color: C.slate }}>No tienes citas próximas</p>
+              <p className="text-xs mt-0.5" style={{ color: C.muted }}>¡Agenda una consulta ahora!</p>
+            </div>
+            <button onClick={() => setSeccion("agendar")}
+              className="px-4 py-2.5 rounded-2xl text-sm font-bold text-white whitespace-nowrap transition-all active:scale-95"
+              style={{ background: C.teal }}>
+              Agendar →
+            </button>
           </div>
         </div>
       )}
 
+      {/* Próximas citas */}
+      {proximas.length > 0 && (
+        <div className="px-4 md:px-8 mb-6">
+          <div className="flex items-center justify-between mb-3">
+            <h2 className="font-bold text-base" style={{ color: C.slate }}>Próximas citas</h2>
+            <button onClick={() => setSeccion("miscitas")}
+              className="text-xs font-semibold" style={{ color: C.teal }}>
+              Ver todas →
+            </button>
+          </div>
+          <div className="flex flex-col gap-3">
+            {proximas.slice(0, 3).map(cita => (
+              <CitaCard key={cita.id} cita={cita} />
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Historial */}
       {pasadas.length > 0 && (
-        <div className="rounded-2xl p-4 shadow-sm" style={{background:"white", border:`1px solid ${C.soft}`}}>
-          <h3 className="text-sm font-semibold mb-3" style={{color: C.dark}}>Historial reciente</h3>
-          <div className="flex flex-col gap-2">
-            {pasadas.slice(0,3).map(cita => {
-              const fecha = new Date(cita.fecha+"T00:00:00");
+        <div className="px-4 md:px-8">
+          <div className="flex items-center justify-between mb-3">
+            <h2 className="font-bold text-base" style={{ color: C.slate }}>Historial reciente</h2>
+          </div>
+          <div className="rounded-2xl overflow-hidden" style={{ background: C.white, border: `1px solid ${C.border}` }}>
+            {pasadas.slice(0, 3).map((cita, i) => {
+              const fecha = new Date(cita.fecha + "T00:00:00");
               return (
-                <div key={cita.id} className="flex items-center gap-3">
-                  <div className="w-8 h-8 rounded-full flex items-center justify-center text-white text-xs font-bold flex-shrink-0"
-                    style={{background: avatarColor(cita.medicoNombre)}}>
-                    {cita.medicoNombre?.split(" ").filter(w=>w.length>2).map(w=>w[0]).join("").slice(0,2)}
-                  </div>
+                <div key={cita.id}
+                  className="flex items-center gap-3 px-4 py-3"
+                  style={{ borderBottom: i < Math.min(pasadas.length, 3) - 1 ? `1px solid ${C.border}` : "none" }}>
+                  <Avatar nombre={cita.medicoNombre} size={36} />
                   <div className="flex-1 min-w-0">
-                    <p className="text-xs font-medium truncate" style={{color: C.dark}}>{cita.medicoNombre}</p>
-                    <p className="text-xs" style={{color: C.light}}>
-                      {fecha.toLocaleDateString("es-MX",{day:"numeric",month:"short",year:"numeric"})}
+                    <p className="text-sm font-semibold truncate" style={{ color: C.slate }}>{cita.medicoNombre}</p>
+                    <p className="text-xs" style={{ color: C.muted }}>
+                      {fecha.toLocaleDateString("es-MX", { day:"numeric", month:"short", year:"numeric" })}
                     </p>
                   </div>
                   <EstadoBadge estado={cita.estado} />
@@ -335,7 +452,9 @@ function DashboardView({ user, citas, setSeccion }) {
   );
 }
 
-// ── Agendar cita ───────────────────────────────────────────────────────────
+/* ─────────────────────────────────────────────
+   AGENDAR CITA
+───────────────────────────────────────────── */
 function AgendarCita({ user, onCitaAgendada }) {
   const [paso, setPaso] = useState(1);
   const [medicos, setMedicos] = useState([]);
@@ -350,20 +469,16 @@ function AgendarCita({ user, onCitaAgendada }) {
   const [busqueda, setBusqueda] = useState("");
   const hoy = getToday();
 
-  // Cargar médicos aprobados con horarios por día
   useEffect(() => {
     const fetchMedicos = async () => {
       setCargandoMedicos(true);
       const snap = await getDocs(
         query(collection(db, "usuarios"),
           where("rol", "==", "medico"),
-          where("estado", "==", "aprobado")
-        )
+          where("estado", "==", "aprobado"))
       );
-      const lista = snap.docs
-        .map(d => ({ id: d.id, ...d.data() }))
+      const lista = snap.docs.map(d => ({ id: d.id, ...d.data() }))
         .filter(m => {
-          // Acepta horarios en formato objeto por día (nuevo) o array (legado)
           if (!m.horarios) return false;
           if (Array.isArray(m.horarios)) return m.horarios.length > 0;
           return Object.values(m.horarios).some(arr => arr?.length > 0);
@@ -374,7 +489,6 @@ function AgendarCita({ user, onCitaAgendada }) {
     fetchMedicos();
   }, []);
 
-  // Cargar horas ocupadas cuando cambia médico o fecha
   useEffect(() => {
     if (!medicoSel || !fecha) return;
     const fetchOcupadas = async () => {
@@ -384,28 +498,22 @@ function AgendarCita({ user, onCitaAgendada }) {
           query(collection(db, "citas"),
             where("medicoId", "==", medicoSel.id),
             where("fecha", "==", fecha),
-            where("estado", "!=", "cancelada")
-          )
+            where("estado", "!=", "cancelada"))
         );
         setHorasOcupadas(snap.docs.map(d => d.data().hora));
-      } catch(e) {
-        setHorasOcupadas([]);
-      }
+      } catch { setHorasOcupadas([]); }
       setCargandoHoras(false);
     };
     fetchOcupadas();
   }, [medicoSel, fecha]);
 
-  // Obtener slots del día seleccionado
   const getSlotsDelDia = () => {
     if (!fecha || !medicoSel?.horarios) return [];
     const horarios = medicoSel.horarios;
-    // Formato nuevo: objeto por día
     if (!Array.isArray(horarios)) {
       const diaSemana = DIAS_SEMANA[new Date(fecha + "T00:00:00").getDay()];
       return horarios[diaSemana] || [];
     }
-    // Formato legado: array simple
     return horarios;
   };
 
@@ -414,49 +522,47 @@ function AgendarCita({ user, onCitaAgendada }) {
     m.especialidad?.toLowerCase().includes(busqueda.toLowerCase())
   );
 
-  // Contar horarios totales de un médico (nuevo formato)
-  const contarHorarios = (m) => {
-    if (!m.horarios) return 0;
-    if (Array.isArray(m.horarios)) return m.horarios.length;
-    return Object.values(m.horarios).reduce((s, a) => s + (a?.length || 0), 0);
-  };
-
   const confirmarCita = async () => {
     if (!medicoSel || !fecha || !horaSel) return;
     setGuardando(true);
     try {
       await addDoc(collection(db, "citas"), {
-        pacienteId:    user.uid,
-        paciente:      user.nombre,
-        medicoId:      medicoSel.id,
-        medicoNombre:  medicoSel.nombre,
-        especialidad:  medicoSel.especialidad,
-        fecha,
-        hora:          horaSel,
-        monto:         medicoSel.precio || 0,
-        estado:        "pendiente",
+        pacienteId: user.uid,
+        paciente: user.nombre,
+        medicoId: medicoSel.id,
+        medicoNombre: medicoSel.nombre,
+        especialidad: medicoSel.especialidad,
+        fecha, hora: horaSel,
+        monto: medicoSel.precio || 0,
+        estado: "pendiente",
         fechaCreacion: new Date().toISOString(),
       });
       setExito(true);
       onCitaAgendada();
-    } catch (e) {
-      console.error("Error al agendar:", e);
-    }
+    } catch (e) { console.error(e); }
     setGuardando(false);
   };
 
+  /* ÉXITO */
   if (exito) return (
-    <div className="flex-1 flex items-center justify-center p-6" style={{background: C.bg}}>
-      <div className="text-center">
-        <div className="w-20 h-20 rounded-full flex items-center justify-center text-4xl mx-auto mb-4" style={{background: C.pale}}>✅</div>
-        <h2 className="text-xl font-bold mb-2" style={{color: C.dark}}>¡Cita agendada!</h2>
-        <p className="text-sm mb-1" style={{color: C.mid}}>{medicoSel?.nombre}</p>
-        <p className="text-sm mb-1" style={{color: C.mid}}>
-          {new Date(fecha+"T00:00:00").toLocaleDateString("es-MX",{weekday:"long",day:"numeric",month:"long"})} · {horaSel}
+    <div className="flex-1 flex items-center justify-center p-6 pb-24 md:pb-6" style={{ background: C.bg }}>
+      <div className="text-center max-w-xs">
+        <div className="w-24 h-24 rounded-3xl flex items-center justify-center text-5xl mx-auto mb-6 shadow-lg"
+          style={{ background: `linear-gradient(135deg, ${C.teal}, ${C.tealDk})` }}>
+          ✅
+        </div>
+        <h2 className="text-2xl font-bold mb-2" style={{ color: C.slate }}>¡Cita agendada!</h2>
+        <p className="font-semibold text-sm mb-1" style={{ color: C.muted }}>{medicoSel?.nombre}</p>
+        <p className="text-sm mb-1" style={{ color: C.muted }}>
+          {new Date(fecha + "T00:00:00").toLocaleDateString("es-MX", { weekday:"long", day:"numeric", month:"long" })} · {horaSel}
         </p>
-        <p className="text-xs mb-6" style={{color: C.light}}>Tu cita está pendiente de confirmación por el asistente.</p>
+        <p className="text-xs mb-8 mt-2 px-4 py-2.5 rounded-2xl"
+          style={{ background: "#fef9c3", color:"#854d0e" }}>
+          ⏳ Tu cita está pendiente de confirmación por el asistente.
+        </p>
         <button onClick={() => { setExito(false); setPaso(1); setMedicoSel(null); setFecha(""); setHoraSel(""); }}
-          className="px-6 py-2.5 rounded-xl text-white text-sm font-medium" style={{background: C.mid}}>
+          className="px-8 py-3 rounded-2xl text-white text-sm font-bold transition-all active:scale-95"
+          style={{ background: C.teal }}>
           Agendar otra cita
         </button>
       </div>
@@ -464,336 +570,355 @@ function AgendarCita({ user, onCitaAgendada }) {
   );
 
   return (
-    <div className="flex-1 p-4 md:p-6 overflow-y-auto pb-20 md:pb-6" style={{background: C.bg}}>
-      <div className="mb-6">
-        <h2 className="text-lg md:text-xl font-bold" style={{color: C.dark}}>Agendar cita</h2>
-        <p className="text-xs md:text-sm" style={{color: C.mid}}>Selecciona tu médico, fecha y hora</p>
-      </div>
+    <div className="flex-1 overflow-y-auto pb-24 md:pb-8" style={{ background: C.bg }}>
+      <div className="px-4 md:px-8 pt-6">
+        <h2 className="text-xl font-bold mb-1" style={{ color: C.slate }}>Agendar cita</h2>
+        <p className="text-sm mb-6" style={{ color: C.muted }}>Selecciona tu médico, fecha y hora.</p>
 
-      {/* Stepper */}
-      <div className="flex items-center gap-2 mb-6">
-        {[{n:1,label:"Médico"},{n:2,label:"Fecha y hora"},{n:3,label:"Confirmación"}].map((s,idx) => (
-          <div key={s.n} className="flex items-center gap-2">
-            <div className="flex items-center gap-1.5">
-              <div className="w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold"
-                style={{background: paso>=s.n ? C.dark : C.soft, color: paso>=s.n ? "white" : C.light}}>
-                {paso>s.n ? "✓" : s.n}
-              </div>
-              <span className="text-xs font-medium hidden sm:block" style={{color: paso>=s.n ? C.dark : C.light}}>
-                {s.label}
-              </span>
-            </div>
-            {idx<2 && <div className="h-px w-6 sm:w-12" style={{background: paso>s.n ? C.mid : C.soft}}></div>}
-          </div>
-        ))}
-      </div>
-
-      {/* Paso 1: Médico */}
-      {paso === 1 && (
-        <div>
-          {cargandoMedicos ? (
-            <div className="text-center py-10" style={{color: C.mid}}>Cargando médicos...</div>
-          ) : medicos.length === 0 ? (
-            <div className="rounded-2xl p-10 text-center shadow-sm" style={{background:"white", border:`1px solid ${C.soft}`}}>
-              <p className="text-4xl mb-3">🩺</p>
-              <p className="text-sm" style={{color: C.mid}}>No hay médicos disponibles con horarios asignados aún.</p>
-            </div>
-          ) : (
-            <>
-              <input type="text" placeholder="Buscar médico o especialidad..."
-                value={busqueda} onChange={e => setBusqueda(e.target.value)}
-                className="w-full rounded-xl px-4 py-2.5 text-sm mb-4 outline-none"
-                style={{background:"white", border:`1px solid ${C.soft}`, color: C.dark}} />
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                {medicosFiltrados.map(medico => (
-                  <button key={medico.id} onClick={() => { setMedicoSel(medico); setPaso(2); setHoraSel(""); setFecha(""); }}
-                    className="text-left p-4 rounded-2xl shadow-sm transition-all"
-                    style={{
-                      background: medicoSel?.id===medico.id ? C.pale : "white",
-                      border: `1px solid ${medicoSel?.id===medico.id ? C.mid : C.soft}`,
-                    }}>
-                    <div className="flex items-center gap-3 mb-2">
-                      <div className="w-10 h-10 rounded-full flex items-center justify-center text-white text-sm font-bold flex-shrink-0"
-                        style={{background: avatarColor(medico.nombre)}}>
-                        {medico.nombre?.split(" ").filter(w=>w.length>2).map(w=>w[0]).join("").slice(0,2)}
-                      </div>
-                      <div>
-                        <p className="text-sm font-semibold" style={{color: C.dark}}>{medico.nombre}</p>
-                        <p className="text-xs" style={{color: C.mid}}>{medico.especialidad}</p>
-                      </div>
-                    </div>
-                    <div className="flex items-center justify-between">
-                      <span className="text-xs" style={{color: C.light}}>
-                        {contarHorarios(medico)} horarios configurados
-                      </span>
-                      <span className="text-sm font-bold" style={{color: C.dark}}>
-                        {medico.precio ? `$${medico.precio}` : "Consultar precio"}
-                      </span>
-                    </div>
-                  </button>
-                ))}
-              </div>
-            </>
-          )}
-        </div>
-      )}
-
-      {/* Paso 2: Fecha y hora */}
-      {paso === 2 && medicoSel && (
-        <div className="max-w-lg">
-          <div className="flex items-center gap-3 p-4 rounded-2xl mb-4"
-            style={{background:"white", border:`1px solid ${C.soft}`}}>
-            <div className="w-10 h-10 rounded-full flex items-center justify-center text-white text-sm font-bold flex-shrink-0"
-              style={{background: avatarColor(medicoSel.nombre)}}>
-              {medicoSel.nombre?.split(" ").filter(w=>w.length>2).map(w=>w[0]).join("").slice(0,2)}
-            </div>
-            <div className="flex-1">
-              <p className="text-sm font-semibold" style={{color: C.dark}}>{medicoSel.nombre}</p>
-              <p className="text-xs" style={{color: C.mid}}>{medicoSel.especialidad}</p>
-            </div>
-            <button onClick={() => { setPaso(1); setHoraSel(""); setFecha(""); }}
-              className="text-xs" style={{color: C.mid}}>Cambiar</button>
-          </div>
-
-          <div className="mb-4">
-            <label className="text-xs font-semibold block mb-2" style={{color: C.dark}}>Selecciona la fecha</label>
-            <input type="date" min={hoy} value={fecha}
-              onChange={e => { setFecha(e.target.value); setHoraSel(""); }}
-              className="w-full rounded-xl px-4 py-2.5 text-sm outline-none"
-              style={{background:"white", border:`1px solid ${C.soft}`, color: C.dark}} />
-          </div>
-
-          {fecha && (
-            <div className="mb-4">
-              <label className="text-xs font-semibold block mb-2" style={{color: C.dark}}>
-                Horarios disponibles — {new Date(fecha+"T00:00:00").toLocaleDateString("es-MX",{weekday:"long"})}
-              </label>
-              {cargandoHoras ? (
-                <p className="text-xs" style={{color: C.mid}}>Verificando disponibilidad...</p>
-              ) : getSlotsDelDia().length === 0 ? (
-                <div className="rounded-xl p-4 text-center" style={{background: C.pale}}>
-                  <p className="text-sm font-medium" style={{color: C.mid}}>
-                    El médico no atiende los {new Date(fecha+"T00:00:00").toLocaleDateString("es-MX",{weekday:"long"})}s
-                  </p>
-                  <p className="text-xs mt-1" style={{color: C.light}}>Selecciona otra fecha.</p>
+        {/* Stepper */}
+        <div className="flex items-center gap-2 mb-6">
+          {[{n:1,label:"Médico"},{n:2,label:"Fecha y hora"},{n:3,label:"Confirmar"}].map((s, idx) => (
+            <div key={s.n} className="flex items-center gap-2">
+              <div className="flex items-center gap-2">
+                <div className="w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold transition-all"
+                  style={{
+                    background: paso > s.n ? C.green : paso === s.n ? C.teal : C.border,
+                    color: paso >= s.n ? "white" : C.muted,
+                  }}>
+                  {paso > s.n ? "✓" : s.n}
                 </div>
-              ) : (
-                <div className="grid grid-cols-3 sm:grid-cols-4 gap-2">
-                  {getSlotsDelDia().map(hora => {
-                    const ocupada = horasOcupadas.includes(hora);
+                <span className="text-xs font-semibold hidden sm:block"
+                  style={{ color: paso >= s.n ? C.slate : C.muted }}>
+                  {s.label}
+                </span>
+              </div>
+              {idx < 2 && (
+                <div className="h-0.5 w-8 sm:w-16 rounded-full transition-all"
+                  style={{ background: paso > s.n ? C.teal : C.border }} />
+              )}
+            </div>
+          ))}
+        </div>
+
+        {/* Paso 1 */}
+        {paso === 1 && (
+          <div>
+            {cargandoMedicos ? (
+              <div className="flex flex-col items-center py-16 gap-3">
+                <div className="w-10 h-10 rounded-full border-4 border-teal-200 border-t-teal-500 animate-spin" />
+                <p className="text-sm font-medium" style={{ color: C.muted }}>Buscando médicos...</p>
+              </div>
+            ) : medicos.length === 0 ? (
+              <div className="rounded-3xl p-10 text-center" style={{ background: C.white, border: `1px solid ${C.border}` }}>
+                <p className="text-5xl mb-3">🩺</p>
+                <p className="font-semibold" style={{ color: C.slate }}>No hay médicos disponibles aún</p>
+                <p className="text-sm mt-1" style={{ color: C.muted }}>Vuelve más tarde.</p>
+              </div>
+            ) : (
+              <>
+                {/* Buscador */}
+                <div className="relative mb-4">
+                  <span className="absolute left-4 top-1/2 -translate-y-1/2 text-base pointer-events-none">🔍</span>
+                  <input type="text" placeholder="Buscar médico o especialidad..."
+                    value={busqueda} onChange={e => setBusqueda(e.target.value)}
+                    className="w-full rounded-2xl pl-11 pr-4 py-3 text-sm outline-none"
+                    style={{ background: C.white, border: `1.5px solid ${C.border}`, color: C.slate }} />
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  {medicosFiltrados.map(medico => {
+                    const sel = medicoSel?.id === medico.id;
                     return (
-                      <button key={hora}
-                        disabled={ocupada}
-                        onClick={() => !ocupada && setHoraSel(hora)}
-                        className="py-2 rounded-xl text-sm font-medium transition-all"
+                      <button key={medico.id}
+                        onClick={() => { setMedicoSel(medico); setPaso(2); setHoraSel(""); setFecha(""); }}
+                        className="text-left p-4 rounded-2xl transition-all hover:shadow-md active:scale-98"
                         style={{
-                          background: ocupada ? "#f3f4f6" : horaSel===hora ? C.dark : "white",
-                          color: ocupada ? "#c0c0c0" : horaSel===hora ? "white" : C.mid,
-                          border: `1px solid ${ocupada ? "#e5e7eb" : horaSel===hora ? C.dark : C.soft}`,
-                          cursor: ocupada ? "not-allowed" : "pointer",
-                          textDecoration: ocupada ? "line-through" : "none",
+                          background: sel ? C.tealPale : C.white,
+                          border: `1.5px solid ${sel ? C.teal : C.border}`,
                         }}>
-                        {hora}
+                        <div className="flex items-center gap-3 mb-3">
+                          <Avatar nombre={medico.nombre} size={48} />
+                          <div>
+                            <p className="font-bold text-sm" style={{ color: C.slate }}>{medico.nombre}</p>
+                            <p className="text-xs mt-0.5" style={{ color: C.muted }}>{medico.especialidad}</p>
+                          </div>
+                        </div>
+                        <div className="flex items-center justify-between pt-3"
+                          style={{ borderTop: `1px solid ${sel ? C.tealLt : C.border}` }}>
+                          <span className="text-xs font-medium" style={{ color: C.muted }}>
+                            🕐 {contarHorarios(medico)} horarios
+                          </span>
+                          <span className="font-bold text-sm" style={{ color: C.teal }}>
+                            {medico.precio ? `$${medico.precio} MXN` : "Consultar"}
+                          </span>
+                        </div>
                       </button>
                     );
                   })}
                 </div>
-              )}
-            </div>
-          )}
-
-          <div className="flex gap-3 mt-4">
-            <button onClick={() => setPaso(1)} className="flex-1 py-2.5 rounded-xl text-sm font-medium"
-              style={{background: C.pale, color: C.dark}}>← Volver</button>
-            <button onClick={() => setPaso(3)} disabled={!fecha || !horaSel}
-              className="flex-1 py-2.5 rounded-xl text-sm font-medium text-white transition-all"
-              style={{
-                background: fecha && horaSel ? C.dark : C.light,
-                cursor: fecha && horaSel ? "pointer" : "not-allowed"
-              }}>
-              Continuar →
-            </button>
+              </>
+            )}
           </div>
-        </div>
-      )}
+        )}
 
-      {/* Paso 3: Confirmación */}
-      {paso === 3 && medicoSel && (
-        <div className="max-w-lg">
-          <div className="rounded-2xl p-5 mb-4" style={{background:"white", border:`1px solid ${C.soft}`}}>
-            <h3 className="text-sm font-semibold mb-4" style={{color: C.dark}}>Resumen de tu cita</h3>
-            <div className="flex flex-col gap-3">
-              {[
-                ["Médico",       medicoSel.nombre],
-                ["Especialidad", medicoSel.especialidad],
-                ["Fecha",        new Date(fecha+"T00:00:00").toLocaleDateString("es-MX",{weekday:"long",day:"numeric",month:"long"})],
-                ["Hora",         horaSel],
-              ].map(([label, value]) => (
-                <div key={label} className="flex justify-between">
-                  <span className="text-xs" style={{color: C.mid}}>{label}</span>
-                  <span className="text-xs font-medium" style={{color: C.dark}}>{value}</span>
+        {/* Paso 2 */}
+        {paso === 2 && medicoSel && (
+          <div className="max-w-lg">
+            {/* Médico seleccionado */}
+            <div className="p-4 rounded-2xl flex items-center gap-3 mb-5"
+              style={{ background: C.white, border: `1.5px solid ${C.teal}40` }}>
+              <Avatar nombre={medicoSel.nombre} size={44} />
+              <div className="flex-1 min-w-0">
+                <p className="font-bold text-sm" style={{ color: C.slate }}>{medicoSel.nombre}</p>
+                <p className="text-xs mt-0.5" style={{ color: C.muted }}>{medicoSel.especialidad}</p>
+              </div>
+              <button onClick={() => { setPaso(1); setHoraSel(""); setFecha(""); }}
+                className="text-xs font-semibold px-3 py-1.5 rounded-xl transition-all"
+                style={{ background: C.bg, color: C.muted, border: `1px solid ${C.border}` }}>
+                Cambiar
+              </button>
+            </div>
+
+            {/* Selector de fecha */}
+            <label className="block text-sm font-bold mb-2" style={{ color: C.slate }}>
+              Selecciona la fecha
+            </label>
+            <input type="date" min={hoy} value={fecha}
+              onChange={e => { setFecha(e.target.value); setHoraSel(""); }}
+              className="w-full rounded-2xl px-4 py-3 text-sm outline-none mb-5"
+              style={{ background: C.white, border: `1.5px solid ${fecha ? C.teal : C.border}`, color: C.slate }} />
+
+            {/* Horarios */}
+            {fecha && (
+              <div className="mb-5">
+                <label className="block text-sm font-bold mb-2" style={{ color: C.slate }}>
+                  Horarios disponibles —{" "}
+                  <span className="font-normal" style={{ color: C.muted }}>
+                    {new Date(fecha + "T00:00:00").toLocaleDateString("es-MX", { weekday:"long" })}
+                  </span>
+                </label>
+                {cargandoHoras ? (
+                  <div className="flex items-center gap-2 py-4">
+                    <div className="w-5 h-5 rounded-full border-2 border-teal-200 border-t-teal-500 animate-spin" />
+                    <p className="text-sm" style={{ color: C.muted }}>Verificando disponibilidad...</p>
+                  </div>
+                ) : getSlotsDelDia().length === 0 ? (
+                  <div className="rounded-2xl p-5 text-center"
+                    style={{ background: "#fffbeb", border:"1px solid #fde68a" }}>
+                    <p className="text-2xl mb-2">😕</p>
+                    <p className="text-sm font-semibold" style={{ color:"#92400e" }}>
+                      El médico no atiende este día
+                    </p>
+                    <p className="text-xs mt-1" style={{ color:"#b45309" }}>Prueba con otra fecha.</p>
+                  </div>
+                ) : (
+                  <div className="grid grid-cols-3 sm:grid-cols-4 gap-2">
+                    {getSlotsDelDia().map(hora => {
+                      const ocupada = horasOcupadas.includes(hora);
+                      const sel = horaSel === hora;
+                      return (
+                        <button key={hora} disabled={ocupada}
+                          onClick={() => !ocupada && setHoraSel(hora)}
+                          className="py-2.5 rounded-2xl text-sm font-semibold transition-all"
+                          style={{
+                            background: ocupada ? C.bg : sel ? C.teal : C.white,
+                            color: ocupada ? C.border : sel ? "white" : C.slate,
+                            border: `1.5px solid ${ocupada ? C.border : sel ? C.teal : C.border}`,
+                            textDecoration: ocupada ? "line-through" : "none",
+                            cursor: ocupada ? "not-allowed" : "pointer",
+                          }}>
+                          {hora}
+                        </button>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+            )}
+
+            <div className="flex gap-3 mt-2">
+              <button onClick={() => setPaso(1)}
+                className="flex-1 py-3 rounded-2xl text-sm font-bold transition-all"
+                style={{ background: C.bg, color: C.slate, border: `1px solid ${C.border}` }}>
+                ← Volver
+              </button>
+              <button onClick={() => setPaso(3)} disabled={!fecha || !horaSel}
+                className="flex-1 py-3 rounded-2xl text-sm font-bold text-white transition-all"
+                style={{ background: fecha && horaSel ? C.teal : C.tealLt,
+                         cursor: fecha && horaSel ? "pointer" : "not-allowed" }}>
+                Continuar →
+              </button>
+            </div>
+          </div>
+        )}
+
+        {/* Paso 3 */}
+        {paso === 3 && medicoSel && (
+          <div className="max-w-lg">
+            <div className="rounded-2xl overflow-hidden mb-4"
+              style={{ background: C.white, border: `1px solid ${C.border}` }}>
+              {/* Cabecera */}
+              <div className="px-5 py-4 flex items-center gap-3"
+                style={{ background: C.tealPale, borderBottom: `1px solid ${C.tealLt}` }}>
+                <Avatar nombre={medicoSel.nombre} size={48} />
+                <div>
+                  <p className="font-bold" style={{ color: C.slate }}>{medicoSel.nombre}</p>
+                  <p className="text-sm" style={{ color: C.muted }}>{medicoSel.especialidad}</p>
                 </div>
-              ))}
-              <div className="h-px" style={{background: C.soft}}></div>
-              <div className="flex justify-between">
-                <span className="text-sm font-semibold" style={{color: C.dark}}>Total</span>
-                <span className="text-lg font-bold" style={{color: C.dark}}>
-                  {medicoSel.precio ? `$${medicoSel.precio} MXN` : "A consultar"}
-                </span>
+              </div>
+
+              {/* Detalles */}
+              <div className="px-5 py-4 flex flex-col gap-3">
+                {[
+                  { icon:"📅", label:"Fecha", value: new Date(fecha+"T00:00:00").toLocaleDateString("es-MX",{weekday:"long",day:"numeric",month:"long"}) },
+                  { icon:"🕐", label:"Hora",  value: horaSel },
+                ].map(({ icon, label, value }) => (
+                  <div key={label} className="flex items-center justify-between">
+                    <span className="text-sm flex items-center gap-2" style={{ color: C.muted }}>
+                      <span>{icon}</span>{label}
+                    </span>
+                    <span className="text-sm font-semibold" style={{ color: C.slate }}>{value}</span>
+                  </div>
+                ))}
+                <div className="h-px" style={{ background: C.border }} />
+                <div className="flex items-center justify-between">
+                  <span className="font-bold" style={{ color: C.slate }}>Total</span>
+                  <span className="text-xl font-bold" style={{ color: C.teal }}>
+                    {medicoSel.precio ? `$${medicoSel.precio} MXN` : "A consultar"}
+                  </span>
+                </div>
               </div>
             </div>
-          </div>
 
-          <div className="rounded-2xl p-4 mb-4 text-xs" style={{background:"#fef3c7", color:"#92400e"}}>
-            ⚠️ Tu cita quedará como <strong>pendiente</strong> hasta que el asistente la confirme.
-          </div>
+            <div className="rounded-2xl px-4 py-3 mb-5 flex items-start gap-2 text-sm"
+              style={{ background:"#fffbeb", color:"#92400e", border:"1px solid #fde68a" }}>
+              <span className="flex-shrink-0">⚠️</span>
+              <p>Tu cita quedará como <strong>pendiente</strong> hasta que el asistente la confirme.</p>
+            </div>
 
-          <div className="flex gap-3">
-            <button onClick={() => setPaso(2)} className="flex-1 py-2.5 rounded-xl text-sm font-medium"
-              style={{background: C.pale, color: C.dark}}>← Volver</button>
-            <button onClick={confirmarCita} disabled={guardando}
-              className="flex-1 py-2.5 rounded-xl text-sm font-medium text-white"
-              style={{background: C.dark}}>
-              {guardando ? "Guardando..." : "✓ Confirmar cita"}
-            </button>
+            <div className="flex gap-3">
+              <button onClick={() => setPaso(2)}
+                className="flex-1 py-3 rounded-2xl text-sm font-bold transition-all"
+                style={{ background: C.bg, color: C.slate, border: `1px solid ${C.border}` }}>
+                ← Volver
+              </button>
+              <button onClick={confirmarCita} disabled={guardando}
+                className="flex-1 py-3 rounded-2xl text-sm font-bold text-white transition-all active:scale-95"
+                style={{ background: guardando ? C.tealLt : C.teal }}>
+                {guardando ? "Guardando..." : "✓ Confirmar cita"}
+              </button>
+            </div>
           </div>
-        </div>
-      )}
+        )}
+      </div>
     </div>
   );
 }
 
-// ── Mis citas ──────────────────────────────────────────────────────────────
+/* ─────────────────────────────────────────────
+   MIS CITAS
+───────────────────────────────────────────── */
 function MisCitas({ citas }) {
   const [filtro, setFiltro] = useState("todas");
   const [busqueda, setBusqueda] = useState("");
   const [citaACancelar, setCitaACancelar] = useState(null);
-  const [cancelado, setCancelado] = useState(false);
+  const [cancelando, setCancelando] = useState(false);
   const hoy = getToday();
 
-  
-
-  const filtradas = (filtro==="proximas"
-    ? citas.filter(c => c.fecha >= hoy && c.estado !== "cancelada").sort((a,b) => a.fecha.localeCompare(b.fecha))
-    : filtro==="pasadas"
-    ? citas.filter(c => c.fecha < hoy).sort((a,b) => b.fecha.localeCompare(a.fecha))
+  const filtradas = (
+    filtro === "proximas" ? citas.filter(c => c.fecha >= hoy && c.estado !== "cancelada").sort((a,b) => a.fecha.localeCompare(b.fecha))
+    : filtro === "pasadas" ? citas.filter(c => c.fecha < hoy).sort((a,b) => b.fecha.localeCompare(a.fecha))
     : [...citas].sort((a,b) => a.fecha.localeCompare(b.fecha))
-  ).filter(c=>{
+  ).filter(c => {
     const q = busqueda.toLowerCase().trim();
     if (!q) return true;
-    return(
-      c.medicoNombre?.toLowerCase().includes(q) ||
-      c.especialidad?.toLowerCase().includes(q)
-    )
+    return c.medicoNombre?.toLowerCase().includes(q) || c.especialidad?.toLowerCase().includes(q);
   });
 
   const handleCancelar = async () => {
     if (!citaACancelar) return;
-    setCancelado(true);
-    try{
-      await updateDoc(doc(db, "citas", citaACancelar.id), { estado: "cancelada" });
-    }catch (e){
-      console.error("Error al cancelar cita:", e);
-    }
-    setCancelado(false);
+    setCancelando(true);
+    try { await updateDoc(doc(db, "citas", citaACancelar.id), { estado:"cancelada" }); }
+    catch (e) { console.error(e); }
+    setCancelando(false);
     setCitaACancelar(null);
   };
 
-  const pudeCancelar = (cita) => 
-    cita.fecha >= hoy &&
-    cita.estado !== "cancelada" &&
-    cita.estado !== "cobrada";
+  const pudeCancelar = (cita) =>
+    cita.fecha >= hoy && cita.estado !== "cancelada" && cita.estado !== "cobrada";
+
+  const filtros = [
+    { id:"todas",    label:"Todas" },
+    { id:"proximas", label:"Próximas" },
+    { id:"pasadas",  label:"Pasadas" },
+  ];
 
   return (
     <>
-      <ModalCancelar
-        cita={citaACancelar}
-        onConfirmar={handleCancelar}
-        onCerrar={() => setCitaACancelar(null)}
-        cancelando={cancelado}
-      />
+      <ModalCancelar cita={citaACancelar} onConfirmar={handleCancelar}
+        onCerrar={() => setCitaACancelar(null)} cancelando={cancelando} />
 
-    <div className="flex-1 p-4 md:p-6 overflow-y-auto pb-20 md:pb-6" style={{background: C.bg}}>
-      <div className="flex items-center justify-between mb-4">
-        <div>
-          <h2 className="text-lg md:text-xl font-bold" style={{color: C.dark}}>Mis citas</h2>
-          <p className="text-xs md:text-sm" style={{color: C.mid}}>Todas tus citas médicas</p>
-        </div>
-        <div className="flex rounded-xl overflow-hidden shadow-sm" style={{border:`1px solid ${C.soft}`}}>
-          {["todas","proximas","pasadas"].map(f => (
-            <button key={f} onClick={() => setFiltro(f)}
-              className="px-3 py-1.5 text-xs font-medium transition-all"
-              style={{background: filtro===f ? C.dark : "white", color: filtro===f ? "white" : C.mid}}>
-              {f==="todas"?"Todas":f==="proximas"?"Próximas":"Pasadas"}
-            </button>
-          ))}
+      <div className="flex-1 overflow-y-auto pb-24 md:pb-8" style={{ background: C.bg }}>
+        <div className="px-4 md:px-8 pt-6">
+          <h2 className="text-xl font-bold mb-1" style={{ color: C.slate }}>Mis citas</h2>
+          <p className="text-sm mb-5" style={{ color: C.muted }}>Revisa y gestiona tus citas médicas.</p>
+
+          {/* Filtros */}
+          <div className="flex gap-2 mb-4 overflow-x-auto pb-1">
+            {filtros.map(f => (
+              <button key={f.id} onClick={() => setFiltro(f.id)}
+                className="px-4 py-2 rounded-2xl text-sm font-semibold whitespace-nowrap transition-all flex-shrink-0"
+                style={{
+                  background: filtro === f.id ? C.teal : C.white,
+                  color: filtro === f.id ? "white" : C.muted,
+                  border: `1.5px solid ${filtro === f.id ? C.teal : C.border}`,
+                }}>
+                {f.label}
+              </button>
+            ))}
+          </div>
+
+          {/* Buscador */}
+          <div className="relative mb-5">
+            <span className="absolute left-4 top-1/2 -translate-y-1/2 text-base pointer-events-none">🔍</span>
+            <input type="text" placeholder="Buscar por médico o especialidad..."
+              value={busqueda} onChange={e => setBusqueda(e.target.value)}
+              className="w-full rounded-2xl pl-11 pr-10 py-3 text-sm outline-none"
+              style={{ background: C.white, border: `1.5px solid ${busqueda ? C.teal : C.border}`, color: C.slate }} />
+            {busqueda && (
+              <button onClick={() => setBusqueda("")}
+                className="absolute right-3 top-1/2 -translate-y-1/2 w-6 h-6 rounded-full flex items-center justify-center text-xs"
+                style={{ background: C.border, color: C.muted }}>✕</button>
+            )}
+          </div>
+
+          {/* Lista */}
+          {filtradas.length === 0 ? (
+            <div className="rounded-3xl p-12 text-center" style={{ background: C.white, border: `1px solid ${C.border}` }}>
+              <p className="text-5xl mb-3">🗓️</p>
+              <p className="font-semibold" style={{ color: C.slate }}>No hay citas aquí</p>
+              <p className="text-sm mt-1" style={{ color: C.muted }}>
+                {busqueda ? "Prueba con otra búsqueda." : "No hay citas en esta categoría."}
+              </p>
+            </div>
+          ) : (
+            <div className="flex flex-col gap-3">
+              {filtradas.map(cita => (
+                <CitaCard key={cita.id} cita={cita}
+                  showCancel={pudeCancelar(cita)}
+                  onCancelar={setCitaACancelar} />
+              ))}
+            </div>
+          )}
         </div>
       </div>
-
-      <div className="relative mb-4">
-      <span className="absolute left-3 top-1/2 -translate-y-1/2 text-sm" style={{color: C.light}}>🔍</span>
-      <input type="text" placeholder="Buscar por médico o especialidad..."
-        value={busqueda} onChange={e => setBusqueda(e.target.value)}
-        className="w-full rounded-xl pl-9 pr-4 py-2.5 text-sm outline-none"
-        style={{background:"white", border:`1px solid ${C.soft}`, color: C.dark}} />
-      {busqueda && (
-        <button onClick={() => setBusqueda("")}
-          className="absolute right-3 top-1/2 -translate-y-1/2 text-xs rounded-full px-1.5 py-0.5"
-          style={{color: C.light, background: C.pale}}>✕</button>
-      )}
-    </div>
-
-      {filtradas.length===0 ? (
-        <div className="rounded-2xl p-10 text-center shadow-sm" style={{background:"white", border:`1px solid ${C.soft}`}}>
-          <p className="text-4xl mb-3">📅</p>
-          <p className="text-sm" style={{color: C.mid}}>No hay citas en esta categoría</p>
-        </div>
-      ) : (
-        <div className="flex flex-col gap-3">
-          {filtradas.map(cita => {
-            const fecha = new Date(cita.fecha+"T00:00:00");
-            return (
-              <div key={cita.id} className="rounded-2xl p-4 shadow-sm" style={{background:"white", border:`1px solid ${C.soft}`}}>
-                <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 rounded-full flex items-center justify-center text-white text-xs font-bold flex-shrink-0"
-                    style={{background: avatarColor(cita.medicoNombre)}}>
-                    {cita.medicoNombre?.split(" ").filter(w=>w.length>2).map(w=>w[0]).join("").slice(0,2)}
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <p className="font-semibold text-sm truncate" style={{color: C.dark}}>{cita.medicoNombre}</p>
-                    <p className="text-xs" style={{color: C.mid}}>{cita.especialidad}</p>
-                  </div>
-                  <EstadoBadge estado={cita.estado} />
-                </div>
-                <div className="flex items-center justify-between mt-3 pt-3" style={{borderTop:`1px solid ${C.soft}`}}>
-                  <div className="flex items-center gap-3 flex-wrap">
-                    <span className="text-xs" style={{color: C.mid}}>
-                      📅 {fecha.toLocaleDateString("es-MX",{day:"numeric",month:"long",year:"numeric"})}
-                    </span>
-                    <span className="text-xs" style={{color: C.mid}}>🕐 {cita.hora}</span>
-                  </div>
-                  {cita.monto > 0 && (
-                    <span className="text-sm font-bold" style={{color: C.dark}}>${cita.monto} MXN</span>
-                  )}
-                  {pudeCancelar(cita) && (
-                    <button onClick={() => setCitaACancelar(cita)}
-                      className="text-xs px-3 py-1.5 rounded-xl font-medium"
-                      style={{background:"#fef2f2", color:"#ef4444", border:"1px solid #fecaca"}}>
-                      Cancelar
-                    </button>
-                  )}
-                </div>
-              </div>
-            );
-          })}
-        </div>
-      )}
-    </div>
-  </>
+    </>
   );
 }
 
-// ── Dashboard principal ────────────────────────────────────────────────────
+/* ─────────────────────────────────────────────
+   APP PRINCIPAL
+───────────────────────────────────────────── */
 export default function DashboardPaciente({ user }) {
   const [seccion, setSeccion] = useState("dashboard");
   const [citas, setCitas] = useState([]);
@@ -803,9 +928,7 @@ export default function DashboardPaciente({ user }) {
     if (!user?.uid) return;
     const unsub = onSnapshot(
       query(collection(db, "citas"), where("pacienteId", "==", user.uid)),
-      (snap) => {
-        setCitas(snap.docs.map(d => ({ id: d.id, ...d.data() })));
-      }
+      snap => setCitas(snap.docs.map(d => ({ id: d.id, ...d.data() })))
     );
     return () => unsub();
   }, [user?.uid]);
@@ -813,15 +936,30 @@ export default function DashboardPaciente({ user }) {
   const handleLogout = async () => { await signOut(auth); navigate("/"); };
 
   return (
-    <div className="flex min-h-screen" style={{background: C.bg}}>
-      <Sidebar seccion={seccion} setSeccion={setSeccion} user={user} onLogout={handleLogout} />
-      <div className="flex-1 flex flex-col min-w-0">
-        <HeaderMovil user={user} seccion={seccion} />
-        {seccion==="dashboard" && <DashboardView user={user} citas={citas} setSeccion={setSeccion} />}
-        {seccion==="agendar"   && <AgendarCita   user={user} onCitaAgendada={() => setSeccion("miscitas")} />}
-        {seccion==="miscitas"  && <MisCitas       citas={citas} />}
+    <>
+      {/* Fuente Nunito desde Google Fonts */}
+      <style>{`
+        @import url('https://fonts.googleapis.com/css2?family=Nunito:wght@400;500;600;700;800&display=swap');
+        body, * { font-family: 'Nunito', sans-serif; }
+        @keyframes slide-up { from { transform:translateY(40px); opacity:0; } to { transform:translateY(0); opacity:1; } }
+        .animate-slide-up { animation: slide-up 0.3s ease; }
+        .animate-spin { animation: spin 0.8s linear infinite; }
+        @keyframes spin { to { transform: rotate(360deg); } }
+        ::-webkit-scrollbar { width: 4px; height: 4px; }
+        ::-webkit-scrollbar-track { background: transparent; }
+        ::-webkit-scrollbar-thumb { background: #e2e8f0; border-radius: 99px; }
+      `}</style>
+
+      <div className="flex min-h-screen" style={{ background: C.bg }}>
+        <Sidebar seccion={seccion} setSeccion={setSeccion} user={user} onLogout={handleLogout} />
+        <div className="flex-1 flex flex-col min-w-0">
+          <HeaderMovil user={user} seccion={seccion} />
+          {seccion === "dashboard" && <DashboardView user={user} citas={citas} setSeccion={setSeccion} />}
+          {seccion === "agendar"   && <AgendarCita   user={user} onCitaAgendada={() => setSeccion("miscitas")} />}
+          {seccion === "miscitas"  && <MisCitas       citas={citas} />}
+        </div>
+        <BottomNav seccion={seccion} setSeccion={setSeccion} onLogout={handleLogout} />
       </div>
-      <BottomNav seccion={seccion} setSeccion={setSeccion} onLogout={handleLogout} />
-    </div>
+    </>
   );
 }
