@@ -46,14 +46,15 @@ export default function Ingresos() {
             });
 
             // Agrupar por médico usando el campo "medico" de cada cita
+            // Agrupar por médico usando medicoId y medicoNombre
             const ingresosMap = {};
             citasMes.forEach((c) => {
-                const mid = c.medico; // campo medico en tu colección citas
+                const mid = c.medicoId ?? c.medico ?? "desconocido";
                 if (!ingresosMap[mid]) {
                     ingresosMap[mid] = {
                         medicoId: mid,
-                        nombre: medicosMap[mid]?.nombre ?? c.medico ?? "Médico desconocido",
-                        especialidad: medicosMap[mid]?.especialidad ?? "—",
+                        nombre: c.medicoNombre ?? medicosMap[mid]?.nombre ?? "Médico desconocido",
+                        especialidad: c.especialidad ?? medicosMap[mid]?.especialidad ?? "—",
                         citas: 0,
                         ingresos: 0,
                     };
