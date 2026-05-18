@@ -3,7 +3,7 @@ import { auth, db } from "../firebase/config";
 import { signOut } from "firebase/auth";
 import {
   collection, query, where, getDocs,
-  addDoc, onSnapshot, doc
+  addDoc, onSnapshot, doc, updateDoc
 } from "firebase/firestore";
 import { useNavigate } from "react-router-dom";
 import logo from "../assets/logo.png";
@@ -37,6 +37,55 @@ function EstadoBadge({ estado }) {
   if (estado === "pendiente")  return <span className="text-xs px-3 py-1 rounded-full font-medium whitespace-nowrap bg-amber-100 text-amber-700">Pendiente</span>;
   if (estado === "cobrada")    return <span className="text-xs px-3 py-1 rounded-full font-medium whitespace-nowrap bg-green-100 text-green-700">Cobrada</span>;
   return <span className="text-xs px-3 py-1 rounded-full font-medium whitespace-nowrap bg-red-100 text-red-600">Cancelada</span>;
+}
+
+// ──  Cancelar citas────────────────────────────────────────────────────────
+function ModalCancelar({ cita, onConfirmar, onCerrar, cancelando }) {
+  if (!cita) return null;
+  const fecha = new Date(cita.fecha + "T00:00:00");
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4"
+      style={{background: "rgba(47,65,87,0.45)", backdropFilter: "blur(4px)"}}>
+      <div className="w-full max-w-sm rounded-2xl shadow-2xl p-6" style={{background: "white"}}>
+        <div className="w-12 h-12 rounded-full flex items-center justify-center text-2xl mx-auto mb-4"
+          style={{background: "#fef2f2"}}>
+          ⚠️
+        </div>
+        <h3 className="text-base font-bold text-center mb-1" style={{color: C.dark}}>
+          ¿Cancelar esta cita?
+        </h3>
+        <p className="text-xs text-center mb-4" style={{color: C.mid}}>
+          No se pudo hacer la cancelación de la cita.
+        </p>
+        <div className="rounded-xl p-3 mb-5" style={{background: C.bg, border: `1px solid ${C.soft}`}}>
+          <div className="flex items-center gap-3">
+            <div className="w-9 h-9 rounded-full flex items-center justify-center text-white text-xs font-bold flex-shrink-0"
+              style={{background: avatarColor(cita.medicoNombre)}}>
+              {cita.medicoNombre?.split(" ").filter(w=>w.length>2).map(w=>w[0]).join("").slice(0,2)}
+            </div>
+            <div>
+              <p className="text-sm font-semibold" style={{color: C.dark}}>{cita.medicoNombre}</p>
+              <p className="text-xs" style={{color: C.mid}}>
+                {fecha.toLocaleDateString("es-MX",{day:"numeric",month:"long"})} · {cita.hora}
+              </p>
+            </div>
+          </div>
+        </div>
+        <div className="flex gap-3">
+          <button onClick={onCerrar} disabled={cancelando}
+            className="flex-1 py-2.5 rounded-xl text-sm font-medium"
+            style={{background: C.pale, color: C.dark}}>
+            Volver
+          </button>
+          <button onClick={onConfirmar} disabled={cancelando}
+            className="flex-1 py-2.5 rounded-xl text-sm font-medium text-white"
+            style={{background: cancelando ? C.light : "#ef4444", cursor: cancelando ? "not-allowed" : "pointer"}}>
+            {cancelando ? "Cancelando..." : "Sí, cancelar"}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
 }
 
 // ── Sidebar desktop ────────────────────────────────────────────────────────
@@ -617,15 +666,53 @@ function AgendarCita({ user, onCitaAgendada }) {
 // ── Mis citas ──────────────────────────────────────────────────────────────
 function MisCitas({ citas }) {
   const [filtro, setFiltro] = useState("todas");
+  const [busqueda, setBusqueda] = useState("");
+  const [citaACancelar, setCitaACancelar] = useState(null);
+  const [cancelado, setCancelado] = useState(false);
   const hoy = getToday();
 
-  const filtradas = filtro==="proximas"
+  
+
+  const filtradas = (filtro==="proximas"
     ? citas.filter(c => c.fecha >= hoy && c.estado !== "cancelada").sort((a,b) => a.fecha.localeCompare(b.fecha))
     : filtro==="pasadas"
     ? citas.filter(c => c.fecha < hoy).sort((a,b) => b.fecha.localeCompare(a.fecha))
-    : [...citas].sort((a,b) => a.fecha.localeCompare(b.fecha));
+    : [...citas].sort((a,b) => a.fecha.localeCompare(b.fecha))
+  ).filter(c=>{
+    const q = busqueda.toLowerCase().trim();
+    if (!q) return true;
+    return(
+      c.medicoNombre?.toLowerCase().includes(q) ||
+      c.especialidad?.toLowerCase().includes(q)
+    )
+  });
+
+  const handleCancelar = async () => {
+    if (!citaACancelar) return;
+    setCancelado(true);
+    try{
+      await updateDoc(doc(db, "citas", citaACancelar.id), { estado: "cancelada" });
+    }catch (e){
+      console.error("Error al cancelar cita:", e);
+    }
+    setCancelado(false);
+    setCitaACancelar(null);
+  };
+
+  const pudeCancelar = (cita) => 
+    cita.fecha >= hoy &&
+    cita.estado !== "Cancelada" &&
+    cita.estado !== "Cobrada";
 
   return (
+    <>
+      <ModalCancelar
+        cita={citaACancelar}
+        onConfirmar={handleCancelar}
+        onCerrar={() => setCitaACancelar(null)}
+        cancelando={cancelando}
+      />
+
     <div className="flex-1 p-4 md:p-6 overflow-y-auto pb-20 md:pb-6" style={{background: C.bg}}>
       <div className="flex items-center justify-between mb-4">
         <div>
@@ -682,6 +769,7 @@ function MisCitas({ citas }) {
         </div>
       )}
     </div>
+    </>
   );
 }
 
