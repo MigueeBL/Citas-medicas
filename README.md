@@ -99,7 +99,7 @@ Monitoreo de ingresos y citas.
 <img width="1463" height="825" alt="Captura de pantalla 2026-05-26 a las 9 06 44 p  m" src="https://github.com/user-attachments/assets/a8efa01b-4689-47ad-8685-74edfa171aa8" />
 
 ## Dashboard Paciente 
-<img width="1465" height="823" alt="Captura de pantalla 2026-05-26 a las 9 07 31 p  m" src="https://github.com/user-attachments/assets/8d66d260-4138-4681-9448-f6fbae16fbd0" />
+<img width="1454" height="825" alt="Captura de pantalla 2026-05-26 a las 9 14 17 p  m" src="https://github.com/user-attachments/assets/97b9da53-cbfd-4919-b23a-ea9df4f531fa" />
 
 <img width="1463" height="828" alt="Captura de pantalla 2026-05-26 a las 9 07 50 p  m" src="https://github.com/user-attachments/assets/9967e60b-d7f2-481a-a0a3-2d250efc4548" />
 
