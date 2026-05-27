@@ -60,16 +60,16 @@ function Navbar({ seccion, onCerrarSesion, onMenuToggle }) {
           <span className="w-5 h-0.5 bg-gray-600 rounded" />
           <span className="w-5 h-0.5 bg-gray-600 rounded" />
         </button>
+        <img src={logo} alt="Logo" className="w-10 h-12 sm:w-[50px] sm:h-[60px]" />
         <span className="text-lg sm:text-xl font-[Montserrat] text-[#2f4157] font-semibold">
           MediAsist
         </span>
       </div>
 
-      <span className="text-xs sm:text-sm text-gray-500 hidden sm:block truncate max-w-[160px]">{seccion}</span>
+      
 
       <div className="flex items-center gap-2 sm:gap-4">
         <Reloj />
-        <img src={logo} alt="Logo" className="w-10 h-12 sm:w-[60px] sm:h-[70px]" />
         <button
           onClick={onCerrarSesion}
           className="flex items-center gap-1 sm:gap-2 px-2 sm:px-4 py-2 rounded-xl text-xs sm:text-sm font-medium text-red-500 border border-red-200 hover:bg-red-50 transition"

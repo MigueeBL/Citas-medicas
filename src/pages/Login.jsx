@@ -140,7 +140,7 @@ export default function Login() {
         <div className="hidden md:flex flex-1 bg-gradient-to-b from-blue-300 to-blue-700 flex-col justify-between p-9">
           <div className="flex items-center gap-3">
             <img src={logo} alt="Logo" className="w-20 h-24 object-contain" />
-            <span className="text-white font-bold text-4xl">Citas Médicas</span>
+            <span className="text-white font-bold text-6xl">MediAsist</span>
           </div>
           <div className="flex flex-col items-center justify-center flex-1 gap-6">
             <img
@@ -153,7 +153,7 @@ export default function Login() {
             </p>
           </div>
           <span className="text-white/40 text-sm text-center">
-            © 2026 Citas Médicas
+            © 2026 MediAsist
           </span>
         </div>
 
@@ -161,10 +161,10 @@ export default function Login() {
         <div className="flex-1 md:flex-[1.2] bg-white flex flex-col justify-center px-8 md:px-14 py-10">
           {/* Logo solo visible en móvil */}
           <div className="md:hidden mb-8 text-center">
-            <div className="flex items-center justify-center gap-3">
+            <div className="flex items-center justify-center gap-2">
               <img src={logo} alt="Logo" className="w-12 h-12 object-contain" />
               <span className="text-blue-600 font-bold text-3xl">
-                Citas Médicas
+                MediAsist
               </span>
             </div>
             <p className="text-blue-600 text-sm mt-3 max-w-xs mx-auto leading-relaxed">
@@ -423,7 +423,7 @@ export default function Login() {
           </button>
           {/* Copyright solo móvil */}
           <p className="md:hidden text-center text-gray-400 text-sm mt-6">
-            © 2026 Citas Médicas
+            © 2026 MediAsist
           </p>
         </div>
       </div>

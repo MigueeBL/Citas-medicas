@@ -215,9 +215,9 @@ function Sidebar({ seccion, setSeccion, user, onLogout }) {
     >
       <div className="px-5 py-5">
         <div className="flex items-center gap-2">
-          <img src={logo} alt="Logo" className="w-9 h-9 object-contain" />
+          <img src={logo} alt="Logo" className="w-10 h-10 object-contain" style={{ filter:"brightness(10)" }} />
           <p className="font-semibold text-2xl leading-none text-white">
-            Citas Médicas
+            MediAsist
           </p>
         </div>
       </div>

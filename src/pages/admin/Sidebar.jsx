@@ -2,6 +2,7 @@ import { useState } from "react";
 import { NavLink, useNavigate } from "react-router-dom";
 import { signOut } from "firebase/auth";
 import { auth } from "../../firebase/config";
+import logo from "../../assets/logo.png";
  
 const BLUE = "#185FA5";
  
@@ -30,10 +31,12 @@ function SidebarContent({ collapsed, onClose }) {
     <>
       {/* Logo */}
       <div style={{ ...styles.logoArea, justifyContent: collapsed ? "center" : "flex-start" }}>
-        <div style={styles.logoIcon}>❤️</div>
+        <div className="w-10 h-10 rounded-2xl flex items-center justify-center shadow-sm">
+          <img src={logo} alt="Logo" className="w-6 h-6 object-contain" style={{ filter:"brightness(10)" }} />
+        </div>
         {!collapsed && (
           <div style={{ flex: 1 }}>
-            <div style={styles.brandName}>Citas Médicas</div>
+            <div style={styles.brandName}>MediAsist</div>
             <div style={styles.brandSub}>Administrador</div>
           </div>
         )}
@@ -137,17 +140,6 @@ const styles = {
     gap: 10,
     padding: "20px 16px",
     borderBottom: "0.5px solid rgba(255,255,255,0.15)",
-  },
-  logoIcon: {
-    width: 36,
-    height: 36,
-    background: "white",
-    borderRadius: 10,
-    display: "flex",
-    alignItems: "center",
-    justifyContent: "center",
-    fontSize: 18,
-    flexShrink: 0,
   },
   brandName:    { color: "white", fontSize: 14, fontWeight: 600, lineHeight: 1.2 },
   brandSub:     { color: "rgba(255,255,255,0.55)", fontSize: 11 },
